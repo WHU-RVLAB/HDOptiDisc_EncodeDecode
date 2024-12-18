@@ -1,0 +1,1 @@
+Instead of the traditional Viterbi algorithm, we use the leading neural network model for symbol detection.
