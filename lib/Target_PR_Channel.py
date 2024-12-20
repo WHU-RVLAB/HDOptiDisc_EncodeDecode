@@ -11,7 +11,7 @@ from Utils import plot_separated
 sys.path.pop()
 import pdb
 
-info_len = 1000
+info_len = 100
     
 class Target_PR_Channel(object):
     

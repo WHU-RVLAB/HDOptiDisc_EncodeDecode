@@ -90,21 +90,20 @@ def realistic_sys():
             pr_adaptive_equalizer.equalizer_input = equalizer_input_truncation.reshape(-1)
             detector_input = pr_adaptive_equalizer.equalized_signal()
             detector_input = detector_input.reshape(1,-1)
-            pdb.set_trace()
             
             dec_tmp, metric_next = viterbi_decoder.vit_dec(detector_input, ini_metric)
             ini_metric = metric_next
             decodeword = np.append(decodeword, dec_tmp, axis=1)
             
-            # eval mode 
-            # Guarantees that the equalizer can track changes in channel characteristics
-            # dec_tmp may not satisfy RLL(1,7) and NRZI constrained code
-            rf_signal = disk_read_channel.RF_signal(dec_tmp)
-            equalizer_input = disk_read_channel.awgn(rf_signal, snr)
-            pr_signal = target_pr_channel.target_channel(dec_tmp)
-            pr_adaptive_equalizer.equalizer_input  = equalizer_input
-            pr_adaptive_equalizer.reference_signal = pr_signal
-            _, _, _, _ = pr_adaptive_equalizer.lms()
+            # # eval mode 
+            # # Guarantees that the equalizer can track changes in channel characteristics
+            # # dec_tmp may not satisfy RLL(1,7) and NRZI constrained code
+            # rf_signal = disk_read_channel.RF_signal(dec_tmp)
+            # equalizer_input = disk_read_channel.awgn(rf_signal, snr)
+            # pr_signal = target_pr_channel.target_channel(dec_tmp)
+            # pr_adaptive_equalizer.equalizer_input  = equalizer_input
+            # pr_adaptive_equalizer.reference_signal = pr_signal
+            # _, _, _, _ = pr_adaptive_equalizer.lms()
         
         print("The SNR is:")
         print(snr)
@@ -266,5 +265,5 @@ class Viterbi(object):
         return np.sum((x - y) ** 2)
 
 if __name__ == '__main__':
-    # realistic_sys()
-    test_sys()
+    realistic_sys()
+    # test_sys()

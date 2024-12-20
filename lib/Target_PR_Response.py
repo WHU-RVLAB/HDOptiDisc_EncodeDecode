@@ -11,7 +11,7 @@ sys.path.pop()
 def sinc(x):
     return np.sinc(x / np.pi)
 
-def partial_response(PR_coefs, bit_periods = 10, bits_freq = 132e6, upsample_factor = 10):
+def partial_response(PR_coefs, bit_periods, bits_freq, upsample_factor = 1):
     T = 1 / bits_freq
     t = np.linspace(-bit_periods * T, bit_periods * T, 2*upsample_factor*bit_periods + 1)
     
@@ -58,7 +58,7 @@ if __name__ == '__main__':
         xlabels=xlabels, 
         ylabels=ylabels
     )
-    bit_periods = max((len(symbol_response)-1)//2, (len(target_pr1)-1)//2)
+    bit_periods = 300
     downsample_factor = 10
     freqs, BD_symbol_response_fft_magnitude = Fourier_Analysis(symbol_response, bit_periods = bit_periods, bits_freq = BD_bits_freq, downsample_factor = downsample_factor)
     _, target_pr1_fft_magnitude = Fourier_Analysis(target_pr1, bit_periods = bit_periods, bits_freq = BD_bits_freq, downsample_factor = downsample_factor)
@@ -80,11 +80,10 @@ if __name__ == '__main__':
         xtick_interval=0.1,
         ytick_interval=0.1
     )
-    # HDDVD_bits_freq = 64.8e6
-    HDDVD_bits_freq = 3.2e6 
+    HDDVD_bits_freq = 36e6
     upsample_factor = 10
     # looks like closer to expectations
-    Normalized_t1, symbol_response = HDDVD_symbol_response(bit_periods = 10, bits_freq = HDDVD_bits_freq, upsample_factor = upsample_factor)
+    Normalized_t1, symbol_response = HDDVD_symbol_response(bit_periods = 150, bits_freq = HDDVD_bits_freq, upsample_factor = upsample_factor)
     PR1_coefs = [1, 2, 2, 2, 1]
     Normalized_t2, target_pr1 = partial_response(PR_coefs = PR1_coefs, bit_periods = 10, bits_freq = HDDVD_bits_freq, upsample_factor = upsample_factor)
     PR2_coefs = [1, 1, 1, 1]
@@ -118,7 +117,7 @@ if __name__ == '__main__':
         xlabels=xlabels, 
         ylabels=ylabels
     )
-    bit_periods = max((len(symbol_response)-1)//2, (len(target_pr1)-1)//2)
+    bit_periods = 300
     downsample_factor = 10
     freqs, HDDVD_symbol_response_fft_magnitude = Fourier_Analysis(symbol_response, bit_periods = bit_periods, bits_freq = HDDVD_bits_freq, downsample_factor = downsample_factor)
     _, target_pr1_fft_magnitude = Fourier_Analysis(target_pr1, bit_periods = bit_periods, bits_freq = HDDVD_bits_freq, downsample_factor = downsample_factor)

@@ -14,7 +14,7 @@ sys.path.pop()
 
 import pdb
 
-info_len = 5000
+info_len = 100
 snr = 40
 BD_bits_freq = 132e6
 

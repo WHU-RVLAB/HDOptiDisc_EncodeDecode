@@ -1,4 +1,14 @@
+import sys
+import os
 import numpy as np
+sys.path.append(
+    os.path.dirname(
+        os.path.abspath(__file__)))
+from Const import RLL_state_machine
+from Channel_Modulator import RLL_Modulator
+sys.path.pop()
+
+info_len = 100
 
 class NRZI_Converter(object):
     
@@ -34,3 +44,21 @@ class NRZI_Converter(object):
         for i in range(1, length):
             z[0, i] = x[0, i] + x[0, i-1]
         return z % 2
+    
+if __name__ == '__main__':
+    
+    # constant and input paras
+    encoder_dict, encoder_definite = RLL_state_machine()
+    RLL_modulator = RLL_Modulator(encoder_dict, encoder_definite)
+    NRZI_converter = NRZI_Converter()
+        
+    info = np.random.randint(2, size = (1, info_len))
+    RLL_codeword = RLL_modulator.forward_coding(info)
+    NRZI_codeword = NRZI_converter.forward_coding(RLL_codeword)
+    
+    print("\ninfo: ", info)
+    print("\ninfo.shape: ", info.shape)
+    print("\nRLL_codeword: ", RLL_codeword)
+    print("\nRLL_codeword.shape: ", RLL_codeword.shape)
+    print("\nNRZI_codeword: ", NRZI_codeword)
+    print("\nNRZI_codeword.shape: ", NRZI_codeword.shape)

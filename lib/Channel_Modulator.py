@@ -5,7 +5,10 @@ sys.path.append(
     os.path.dirname(
         os.path.abspath(__file__)))
 from Utils import find_index
+from Const import RLL_state_machine
 sys.path.pop()
+
+info_len = 100
 
 ## RLL_Modulator: constrained RLL(1,7) encoder
 class RLL_Modulator(object):
@@ -43,3 +46,17 @@ class RLL_Modulator(object):
     
     def inverse_coding(self, info):
         pass
+    
+if __name__ == '__main__':
+    
+    # constant and input paras
+    encoder_dict, encoder_definite = RLL_state_machine()
+    RLL_modulator = RLL_Modulator(encoder_dict, encoder_definite)
+        
+    info = np.random.randint(2, size = (1, info_len))
+    codeword = RLL_modulator.forward_coding(info)
+    
+    print("\ninfo: ", info)
+    print("\ninfo.shape: ", info.shape)
+    print("\ncodeword: ", codeword)
+    print("\ncodeword.shape: ", codeword.shape)
