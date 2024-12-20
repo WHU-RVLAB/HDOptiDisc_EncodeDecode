@@ -75,7 +75,7 @@ if __name__ == '__main__':
             'rf_signal',
             f'equalizer_input_snr{snr}'
         ]
-        xlabels = ["Time (t/T_S)"]
+        xlabels = ["Time (t/T)"]
         ylabels = [
             "Binary",
             "Amplitude",

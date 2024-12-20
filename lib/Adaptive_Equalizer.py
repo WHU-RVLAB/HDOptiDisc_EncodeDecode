@@ -119,7 +119,7 @@ if __name__ == '__main__':
         f'equalizer_input_snr{snr}',
         'pr_signal',
     ]
-    xlabels = ["Time (t/T_S)"]
+    xlabels = ["Time (t/T)"]
     ylabels = [
         "Binary",
         "Amplitude",
@@ -153,9 +153,9 @@ if __name__ == '__main__':
         'equalizer_coeffs'
     ]
     xlabels = [
-        "Time (t/T_S)",
-        "Time (t/T_S)",
-        "Time (t/T_S)",
+        "Time (t/T)",
+        "Time (t/T)",
+        "Time (t/T)",
         "equalizer_coeffs idx"
     ]
     ylabels = ["Amplitude"]

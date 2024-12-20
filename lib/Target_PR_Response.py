@@ -12,14 +12,14 @@ def sinc(x):
     return np.sinc(x / np.pi)
 
 def partial_response(PR_coefs, bit_periods = 10, bits_freq = 132e6, upsample_factor = 10):
-    T_S = 1 / bits_freq
-    t = np.linspace(-bit_periods * T_S, bit_periods * T_S, 2*upsample_factor*bit_periods + 1)
+    T = 1 / bits_freq
+    t = np.linspace(-bit_periods * T, bit_periods * T, 2*upsample_factor*bit_periods + 1)
     
     target_pr = np.zeros_like(t)
     for n in range(len(PR_coefs)):
-        target_pr += PR_coefs[n] * sinc((t - n * T_S) * np.pi / T_S)
+        target_pr += PR_coefs[n] * sinc((t - n * T) * np.pi / T)
     
-    return t/T_S, target_pr
+    return t/T, target_pr
     
 if __name__ == '__main__':
     BD_bits_freq = 132e6
@@ -49,7 +49,7 @@ if __name__ == '__main__':
         'Target PR [1 1 1 1] Response',
         'Target PR [1 2 3 4 3 2 1] Response',
     ]
-    xlabels = ["Time (t/T_S)"]
+    xlabels = ["Time (t/T)"]
     ylabels = ["Amplitude"]
     plot_separated(
         Xs=Xs, 
@@ -109,7 +109,7 @@ if __name__ == '__main__':
         'Target PR [1 1 1 1] Response',
         'Target PR [1 2 3 4 3 2 1] Response',
     ]
-    xlabels = ["Time (t/T_S)"]
+    xlabels = ["Time (t/T)"]
     ylabels = ["Amplitude"]
     plot_separated(
         Xs=Xs, 

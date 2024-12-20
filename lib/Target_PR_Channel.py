@@ -102,7 +102,7 @@ if __name__ == '__main__':
         'Binary Sequence',
         'pr_signal',
     ]
-    xlabels = ["Time (t/T_S)"]
+    xlabels = ["Time (t/T)"]
     ylabels = [
         "Binary",
         "Amplitude",
