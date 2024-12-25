@@ -8,51 +8,53 @@ sys.path.append(
 from Utils import plot_separated, Fourier_Analysis
 sys.path.pop()
 
-def disk_impulse_response(wavelength, na, bit_periods, bits_freq, upsample_factor):
+def disk_impulse_response(wavelength, na, T_L, bit_periods, upsample_factor):
     T_0 = 0.86 * wavelength / na
-    T = 1 / bits_freq
-    t = np.linspace(-bit_periods * T, bit_periods * T, 2*upsample_factor*bit_periods + 1)
+    t = np.linspace(-bit_periods * T_L, bit_periods * T_L, int(2*upsample_factor*bit_periods + 1))
     
     impulse_response = (2 / (T_0 * np.sqrt(np.pi))) * np.exp(-(2 * t / T_0) ** 2)
     
-    return t/T, impulse_response
+    return t/T_L, impulse_response
 
-def disk_symbol_response(wavelength, na, bit_periods, bits_freq, upsample_factor):
+def disk_symbol_response(wavelength, na, T_L, bit_periods, upsample_factor):
     T_0 = 0.86 * wavelength / na
-    T = 1 / bits_freq
-    t = np.linspace(-bit_periods * T, bit_periods * T, 2*upsample_factor*bit_periods + 1)
+    t = np.linspace(-bit_periods * T_L, bit_periods * T_L, int(2*upsample_factor*bit_periods + 1))
 
-    symbol_response = 0.5 * (erf(t / T_0) - erf((t - T) / T_0))
+    symbol_response = 0.5 * (erf(2*(t + 0.5*T_L) / T_0) - erf(2*(t - 0.5*T_L) / T_0))
     
-    return t/T, symbol_response
+    return t/T_L, symbol_response
 
-def BD_impulse_response(bit_periods, bits_freq = 132e6, upsample_factor = 1):
+def BD_impulse_response(bit_periods, upsample_factor = 1):
     wavelength = 405e-9
     na = 0.85
-    return disk_impulse_response(wavelength, na, bit_periods, bits_freq, upsample_factor)
+    T_L = 74.5e-9
+    return disk_impulse_response(wavelength, na, T_L, bit_periods, upsample_factor)
 
-def BD_symbol_response(bit_periods, bits_freq = 132e6, upsample_factor = 1):
+def BD_symbol_response(bit_periods, upsample_factor = 1):
     wavelength = 405e-9
     na = 0.85
-    return disk_symbol_response(wavelength, na, bit_periods, bits_freq, upsample_factor)
+    T_L = 74.5e-9
+    return disk_symbol_response(wavelength, na, T_L, bit_periods, upsample_factor)
 
-def HDDVD_impulse_response(bit_periods, bits_freq = 36e6, upsample_factor = 1):
+def HDDVD_impulse_response(bit_periods, upsample_factor = 1):
     wavelength = 405e-9
     na = 0.65
-    return disk_impulse_response(wavelength, na, bit_periods, bits_freq, upsample_factor)
+    T_L = 0.102e-6
+    return disk_impulse_response(wavelength, na, T_L, bit_periods, upsample_factor)
 
-def HDDVD_symbol_response(bit_periods, bits_freq = 36e6, upsample_factor = 1):
+def HDDVD_symbol_response(bit_periods, upsample_factor = 1):
     wavelength = 405e-9
     na = 0.65
-    return disk_symbol_response(wavelength, na, bit_periods, bits_freq, upsample_factor)
+    T_L = 0.102e-6
+    return disk_symbol_response(wavelength, na, T_L, bit_periods, upsample_factor)
        
 if __name__ == '__main__':
-    BD_bits_freq = 132e6
-    bit_periods = 150
-    upsample_factor = 1
-    Normalized_t1, impulse_response = BD_impulse_response(bit_periods = bit_periods, bits_freq = BD_bits_freq, upsample_factor = upsample_factor)
-    Normalized_t2, symbol_response = BD_symbol_response(bit_periods = bit_periods, bits_freq = BD_bits_freq, upsample_factor = upsample_factor)
     
+    bit_periods = 10
+    BD_T_L = 74.5e-9
+    upsample_factor = 10
+    Normalized_t1, impulse_response = BD_impulse_response(bit_periods = bit_periods, upsample_factor = upsample_factor)
+    Normalized_t2, symbol_response = BD_symbol_response(bit_periods = bit_periods, upsample_factor = upsample_factor)
     Xs = [
     Normalized_t1,
     Normalized_t2
@@ -67,30 +69,17 @@ if __name__ == '__main__':
     ]
     xlabels = ["Time (t/T)"]
     ylabels = ["Normalized Amplitude"]
-    Xtick_intervals = [
-        10,
-        10
-    ]
-    Ytick_intervals = [
-        0.1,
-        0.1
-    ]
     plot_separated(
         Xs=Xs, 
         Ys=Ys, 
         titles=titles,     
         xlabels=xlabels, 
-        ylabels=ylabels,
-        Xtick_intervals=Xtick_intervals,
-        Ytick_intervals=Ytick_intervals
+        ylabels=ylabels
     )
-    
-    bit_periods = 300
-    downsample_factor = 1
-    freqs, impulse_response_fft_magnitude = Fourier_Analysis(impulse_response, bit_periods = bit_periods, bits_freq = BD_bits_freq, downsample_factor = downsample_factor)
-    _, symbol_response_fft_magnitude = Fourier_Analysis(symbol_response, bit_periods = bit_periods, bits_freq = BD_bits_freq, downsample_factor = downsample_factor)
-
-    Normalized_f = freqs/max(freqs)
+    sample_periods = 300
+    downsample_factor = 10
+    Normalized_f, impulse_response_fft_magnitude = Fourier_Analysis(impulse_response, sample_periods = sample_periods, T_L = BD_T_L, downsample_factor = downsample_factor)
+    _, symbol_response_fft_magnitude = Fourier_Analysis(symbol_response, sample_periods = sample_periods, T_L = BD_T_L, downsample_factor = downsample_factor)
     Xs = [
     Normalized_f,
     Normalized_f
@@ -105,30 +94,20 @@ if __name__ == '__main__':
     ]
     xlabels = ["Normalized Frequency"]
     ylabels = ["Normalized Amplitude"]
-    Xtick_intervals = [
-        0.1,
-        0.05
-    ]
-    Ytick_intervals = [
-        0.1,
-        0.1
-    ]
     plot_separated(
         Xs=Xs, 
         Ys=Ys, 
         titles=titles,     
         xlabels=xlabels, 
-        ylabels=ylabels,
-        Xtick_intervals=Xtick_intervals,
-        Ytick_intervals=Ytick_intervals
-    )
+        ylabels=ylabels
+    ) 
     
-    HDDVD_bits_freq = 36e6
-    bit_periods = 150
-    upsample_factor = 1
-    Normalized_t1, impulse_response = HDDVD_impulse_response(bit_periods = bit_periods, bits_freq = HDDVD_bits_freq, upsample_factor = upsample_factor)
-    Normalized_t2, symbol_response = HDDVD_symbol_response(bit_periods = bit_periods, bits_freq = HDDVD_bits_freq, upsample_factor = upsample_factor)
-
+    
+    bit_periods = 10
+    HDDVD_T_L = 0.102e-6
+    upsample_factor = 10
+    Normalized_t1, impulse_response = HDDVD_impulse_response(bit_periods = bit_periods, upsample_factor = upsample_factor)
+    Normalized_t2, symbol_response = HDDVD_symbol_response(bit_periods = bit_periods, upsample_factor = upsample_factor)
     Xs = [
     Normalized_t1,
     Normalized_t2
@@ -143,30 +122,17 @@ if __name__ == '__main__':
     ]
     xlabels = ["Time (t/T)"]
     ylabels = ["Normalized Amplitude"]
-    Xtick_intervals = [
-        10,
-        10
-    ]
-    Ytick_intervals = [
-        0.1,
-        0.1
-    ]
     plot_separated(
         Xs=Xs, 
         Ys=Ys, 
         titles=titles,     
         xlabels=xlabels, 
-        ylabels=ylabels,
-        Xtick_intervals=Xtick_intervals,
-        Ytick_intervals=Ytick_intervals
+        ylabels=ylabels
     )
-    
-    bit_periods = 300
-    downsample_factor = 1
-    freqs, impulse_response_fft_magnitude = Fourier_Analysis(impulse_response, bit_periods = bit_periods, bits_freq = HDDVD_bits_freq, downsample_factor = downsample_factor)
-    _, symbol_response_fft_magnitude = Fourier_Analysis(symbol_response, bit_periods = bit_periods, bits_freq = HDDVD_bits_freq, downsample_factor = downsample_factor)
-
-    Normalized_f = freqs/max(freqs)
+    sample_periods = 300
+    downsample_factor = 10
+    Normalized_f, impulse_response_fft_magnitude = Fourier_Analysis(impulse_response, sample_periods = sample_periods, T_L = HDDVD_T_L, downsample_factor = downsample_factor)
+    _, symbol_response_fft_magnitude = Fourier_Analysis(symbol_response, sample_periods = sample_periods, T_L = HDDVD_T_L, downsample_factor = downsample_factor)
     Xs = [
     Normalized_f,
     Normalized_f
@@ -181,20 +147,10 @@ if __name__ == '__main__':
     ]
     xlabels = ["Normalized Frequency"]
     ylabels = ["Normalized Amplitude"]
-    Xtick_intervals = [
-        0.1,
-        0.05
-    ]
-    Ytick_intervals = [
-        0.1,
-        0.1
-    ]
     plot_separated(
         Xs=Xs, 
         Ys=Ys, 
         titles=titles,     
         xlabels=xlabels, 
-        ylabels=ylabels,
-        Xtick_intervals=Xtick_intervals,
-        Ytick_intervals=Ytick_intervals
+        ylabels=ylabels
     )

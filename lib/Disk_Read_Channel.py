@@ -11,7 +11,7 @@ from Disk_Response import BD_symbol_response
 from Utils import plot_separated
 sys.path.pop()
 
-info_len = 100
+info_len = 800
 tap_bd_num = 301
 snr_start =20
 snr_stop =60

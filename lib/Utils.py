@@ -53,22 +53,13 @@ def plot_separated(Xs, Ys, titles, xlabels, ylabels, Xtick_intervals=[None], Yti
     plt.tight_layout()
     plt.show()
 
-def Fourier_Analysis(signal, bit_periods, bits_freq, downsample_factor = 1, window = 'hamming'):
+def Fourier_Analysis(signal, sample_periods, T_L, downsample_factor = 1):
     signal = signal[::downsample_factor]
-    T = 1 / bits_freq
-    N_T = (2 * bit_periods + 1) * T
-    N = len(signal)
-    
-    if window == 'hamming':
-        window_func = np.hamming(N)
-    else:
-        raise ValueError("Unsupported window type. Choose from 'hamming', 'hann', 'blackman', or 'bartlett'.")
-    signal = signal * window_func
 
-    omega = np.fft.rfftfreq(int(N_T/T), T/(2*np.pi))
-    fft_magnitude = T*np.abs(np.fft.rfft(signal, n=int(N_T/T)))
+    omega = np.fft.rfftfreq(sample_periods, T_L)
+    fft_magnitude = T_L*np.abs(np.fft.rfft(signal, n=sample_periods))
 
-    return omega, fft_magnitude
+    return T_L*omega, fft_magnitude
   
 # find one idx for the matched sequence
 def find_index(all_array, element):
