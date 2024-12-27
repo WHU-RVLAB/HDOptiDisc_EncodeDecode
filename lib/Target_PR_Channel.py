@@ -11,7 +11,7 @@ from Utils import plot_separated
 sys.path.pop()
 import pdb
 
-info_len = 100
+info_len = 80
     
 class Target_PR_Channel(object):
     
@@ -22,22 +22,6 @@ class Target_PR_Channel(object):
         
         self.len_dummy = self.dummy_list[0].shape[1]
         self.num_input_sym = int(self.channel_machine['in_out'].shape[1] / 2)
-        
-    # def __init__(self, target_pr_coefs):
-    #     _, target_channel_coef = partial_response(PR_coefs = target_pr_coefs)
-    #     tap_pr_num = len(target_pr_coefs)
-    #     target_channel_coef = target_channel_coef[len(target_channel_coef)//2:len(target_channel_coef)//2 + tap_pr_num]
-    #     self.target_channel_coef = target_channel_coef.reshape(1,-1)
-    #     self.tap_pr_num = tap_pr_num
-    #     print('The target pr channel coefficient is\n')
-    #     print(self.target_channel_coef)
-    
-    # def PR_signal(self, codeword):
-    #     tap_pr_num_side = int((self.tap_pr_num - 1) / 2)
-    #     pr_signal = (np.convolve(self.target_channel_coef[0, :], codeword[0, :])
-    #            [tap_pr_num_side:-tap_pr_num_side].reshape(codeword.shape))
-        
-    #     return pr_signal
     
     def target_channel(self, x):
         '''

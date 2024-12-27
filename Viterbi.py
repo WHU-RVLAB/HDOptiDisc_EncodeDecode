@@ -18,13 +18,13 @@ np.random.seed(12345)
 parser = argparse.ArgumentParser()
 
 parser.add_argument('-info_len', type=int, default=1000000)
-parser.add_argument('-equalizer_train_len', type=int, default=1000)
+parser.add_argument('-equalizer_train_len', type=int, default=10000)
 parser.add_argument('-truncation_len', type=int, default=30)
 parser.add_argument('-overlap_len', type=int, default=30)
 
-parser.add_argument('-snr_start', type=float, default=8.5)
-parser.add_argument('-snr_stop', type=float, default=12.5)
-parser.add_argument('-snr_step', type=float, default=0.5)
+parser.add_argument('-snr_start', type=float, default=40)
+parser.add_argument('-snr_stop', type=float, default=60)
+parser.add_argument('-snr_step', type=float, default=10)
 
 global args
 args = parser.parse_args()
@@ -41,7 +41,7 @@ def realistic_sys():
     rate_constrain = num_sym_in_constrain / num_sym_out_constrain
     dummy_len = int(args.overlap_len * num_sym_in_constrain 
                  / num_sym_out_constrain)
-    codeword_len = int(args.info_len/rate_constrain)
+    codeword_len = int(args.equalizer_train_len/rate_constrain)
     
     # class
     RLL_modulator = RLL_Modulator(encoder_dict, encoder_definite)
@@ -53,18 +53,90 @@ def realistic_sys():
     # train mode 
     # Initial Convergence of Tap Coefficients for Adaptive Equalizers
     snr = args.snr_start
+    code_rate = 2/3
+    Normalized_t = np.linspace(1, int((args.equalizer_train_len+dummy_len)/code_rate), int((args.equalizer_train_len+dummy_len)/code_rate))
+        
     train_bits = np.random.randint(2, size = (1, args.equalizer_train_len+dummy_len))
     codeword = NRZI_converter.forward_coding(RLL_modulator.forward_coding(train_bits))
+    
     rf_signal = disk_read_channel.RF_signal(codeword)
     equalizer_input = disk_read_channel.awgn(rf_signal, snr)
+    
     pr_signal = target_pr_channel.target_channel(codeword)
+    
     pr_adaptive_equalizer = Adaptive_Equalizer(        
-        equalizer_input  = equalizer_input.reshape(-1),
-        reference_signal = pr_signal.reshape(-1),
-        taps_num = 9,
+        equalizer_input  = equalizer_input,
+        reference_signal = pr_signal,
+        taps_num = 15,
         mu = 0.01
     )
-    _, _, _, _ = pr_adaptive_equalizer.lms()
+    detector_input, error_signal, error_signal_square, equalizer_coeffs = pr_adaptive_equalizer.lms()
+    
+    Xs = [
+        Normalized_t,
+        Normalized_t,
+        Normalized_t,
+        Normalized_t
+    ]
+    Ys = [
+        {'data': codeword.reshape(-1), 'label': 'binary Sequence'}, 
+        {'data': rf_signal.reshape(-1), 'label': 'rf_signal', 'color': 'red'},
+        {'data': equalizer_input.reshape(-1), 'label': f'equalizer_input_snr{snr}', 'color': 'red'},
+        {'data': pr_signal.reshape(-1), 'label': 'pr_signal', 'color': 'red'},
+    ]
+    titles = [
+        'Binary Sequence',
+        'rf_signal',
+        f'equalizer_input_snr{snr}',
+        'pr_signal',
+    ]
+    xlabels = ["Time (t/T)"]
+    ylabels = [
+        "Binary",
+        "Amplitude",
+        "Amplitude",
+        "Amplitude",
+    ]
+    plot_separated(
+        Xs=Xs, 
+        Ys=Ys, 
+        titles=titles,     
+        xlabels=xlabels, 
+        ylabels=ylabels
+    )
+    
+    Xs = [
+        Normalized_t,
+        Normalized_t,
+        Normalized_t,
+        np.arange(equalizer_coeffs.shape[1])
+    ]
+    Ys = [
+        {'data': detector_input.reshape(-1), 'label': 'detector_input', 'color': 'red'},
+        {'data': error_signal.reshape(-1), 'label': 'error_signal', 'color': 'red'},
+        {'data': error_signal_square.reshape(-1), 'label': 'error_signal_square', 'color': 'red'},
+        {'data': equalizer_coeffs.reshape(-1), 'label': 'equalizer_coeffs', 'color': 'red'}
+    ]
+    titles = [
+        'detector_input',
+        'error_signal',
+        'error_signal_square',
+        'equalizer_coeffs'
+    ]
+    xlabels = [
+        "Time (t/T)",
+        "Time (t/T)",
+        "Time (t/T)",
+        "equalizer_coeffs idx"
+    ]
+    ylabels = ["Amplitude"]
+    plot_separated(
+        Xs=Xs, 
+        Ys=Ys, 
+        titles=titles,     
+        xlabels=xlabels, 
+        ylabels=ylabels
+    )
     
     # define ber
     num_ber = int((args.snr_stop-args.snr_start)/args.snr_step+1)
@@ -76,20 +148,23 @@ def realistic_sys():
         snr = args.snr_start+idx*args.snr_step
         
         info = np.random.randint(2, size = (1, args.info_len+dummy_len))
-        codeword = NRZI_converter.forward_coding(RLL_modulator.forward_coding(info))
+        codeword_real = NRZI_converter.forward_coding(RLL_modulator.forward_coding(info))
         
-        rf_signal = disk_read_channel.RF_signal(codeword)
-        equalizer_input_real = disk_read_channel.awgn(rf_signal, snr)
+        rf_signal_real = disk_read_channel.RF_signal(codeword_real)
+        equalizer_input_real = disk_read_channel.awgn(rf_signal_real, snr)
+        pr_signal_real = target_pr_channel.target_channel(codeword_real)
         
         length = equalizer_input_real.shape[1]
         decodeword = np.empty((1, 0))
         for pos in range(0, length - args.overlap_len, args.truncation_len):
             
+            codeword_truncation = codeword_real[:, pos:pos+args.truncation_len+args.overlap_len]
+            rf_signal_truncation = rf_signal_real[:, pos:pos+args.truncation_len+args.overlap_len]
             equalizer_input_truncation = equalizer_input_real[:, pos:pos+args.truncation_len+args.overlap_len]
+            pr_signal_truncation = pr_signal_real[:, pos:pos+args.truncation_len+args.overlap_len]
             
-            pr_adaptive_equalizer.equalizer_input = equalizer_input_truncation.reshape(-1)
+            pr_adaptive_equalizer.equalizer_input = equalizer_input_truncation
             detector_input = pr_adaptive_equalizer.equalized_signal()
-            detector_input = detector_input.reshape(1,-1)
             
             dec_tmp, metric_next = viterbi_decoder.vit_dec(detector_input, ini_metric)
             ini_metric = metric_next
@@ -98,12 +173,80 @@ def realistic_sys():
             # # eval mode 
             # # Guarantees that the equalizer can track changes in channel characteristics
             # # dec_tmp may not satisfy RLL(1,7) and NRZI constrained code
-            # rf_signal = disk_read_channel.RF_signal(dec_tmp)
-            # equalizer_input = disk_read_channel.awgn(rf_signal, snr)
-            # pr_signal = target_pr_channel.target_channel(dec_tmp)
-            # pr_adaptive_equalizer.equalizer_input  = equalizer_input
-            # pr_adaptive_equalizer.reference_signal = pr_signal
-            # _, _, _, _ = pr_adaptive_equalizer.lms()
+            # pr_adaptive_equalizer.equalizer_input  = equalizer_input_truncation
+            # pr_adaptive_equalizer.reference_signal = pr_signal_truncation
+            # detector_input_train, error_signal, error_signal_square, equalizer_coeffs = pr_adaptive_equalizer.lms()
+            
+            Normalized_t = np.linspace(1, args.truncation_len+args.overlap_len, args.truncation_len+args.overlap_len)
+            Xs = [
+                Normalized_t,
+                Normalized_t,
+                Normalized_t,
+                Normalized_t,
+                Normalized_t
+            ]
+            Ys = [
+                {'data': codeword_truncation.reshape(-1), 'label': 'binary Sequence'}, 
+                {'data': rf_signal_truncation.reshape(-1), 'label': 'rf_signal_truncation', 'color': 'red'},
+                {'data': equalizer_input_truncation.reshape(-1), 'label': 'equalizer_input_truncation', 'color': 'red'},
+                {'data': pr_signal_truncation.reshape(-1), 'label': 'pr_signal_truncation', 'color': 'red'},
+                {'data': detector_input.reshape(-1), 'label': 'detector_input', 'color': 'red'},
+            ]
+            titles = [
+                'codeword_truncation',
+                'rf_signal_truncation',
+                'equalizer_input_truncation',
+                'pr_signal_truncation',
+                'detector_input',
+            ]
+            xlabels = ["Time (t/T)"]
+            ylabels = [
+                "Binary",
+                "Amplitude",
+                "Amplitude",
+                "Amplitude",
+                "Amplitude"
+            ]
+            # plot_separated(
+            #     Xs=Xs, 
+            #     Ys=Ys, 
+            #     titles=titles,     
+            #     xlabels=xlabels, 
+            #     ylabels=ylabels
+            # )
+            
+            # Xs = [
+            #     Normalized_t,
+            #     Normalized_t,
+            #     Normalized_t,
+            #     np.arange(equalizer_coeffs.shape[1])
+            # ]
+            # Ys = [
+            #     {'data': detector_input_train.reshape(-1), 'label': 'detector_input_train', 'color': 'red'},
+            #     {'data': error_signal.reshape(-1), 'label': 'error_signal', 'color': 'red'},
+            #     {'data': error_signal_square.reshape(-1), 'label': 'error_signal_square', 'color': 'red'},
+            #     {'data': equalizer_coeffs.reshape(-1), 'label': 'equalizer_coeffs', 'color': 'red'}
+            # ]
+            # titles = [
+            #     'detector_input_train',
+            #     'error_signal',
+            #     'error_signal_square',
+            #     'equalizer_coeffs'
+            # ]
+            # xlabels = [
+            #     "Time (t/T)",
+            #     "Time (t/T)",
+            #     "Time (t/T)",
+            #     "equalizer_coeffs idx"
+            # ]
+            # ylabels = ["Amplitude"]
+            # plot_separated(
+            #     Xs=Xs, 
+            #     Ys=Ys, 
+            #     titles=titles,     
+            #     xlabels=xlabels, 
+            #     ylabels=ylabels
+            # )
         
         print("The SNR is:")
         print(snr)

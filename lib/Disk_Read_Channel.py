@@ -10,9 +10,10 @@ from Channel_Converter import NRZI_Converter
 from Disk_Response import BD_symbol_response
 from Utils import plot_separated
 sys.path.pop()
+import pdb
 
-info_len = 800
-tap_bd_num = 301
+info_len = 80
+tap_bd_num = 6
 snr_start =20
 snr_stop =60
 snr_step =10
@@ -20,17 +21,23 @@ snr_step =10
 class Disk_Read_Channel(object):
     
     def __init__(self):
-        tap_bd_num_side = int((tap_bd_num - 1) / 2)
-        _, bd_di_coef = BD_symbol_response(tap_bd_num_side)
-        self.bd_di_coef = bd_di_coef.reshape(1,-1)
+        _, bd_di_coef = BD_symbol_response(bit_periods = 10)
+        mid_idx = len(bd_di_coef)//2
+        self.bd_di_coef = bd_di_coef[mid_idx : mid_idx + tap_bd_num].reshape(1,-1)
+        self.len_dummy = self.bd_di_coef.shape[1]
         
         print('The dipulse bd coefficient is\n')
+        print(bd_di_coef)
+        print('Tap bd coefficient is\n')
         print(self.bd_di_coef)
+        print('Len Dummy is\n')
+        print(self.len_dummy)
     
     def RF_signal(self, codeword):
-        tap_bd_num_side = int((tap_bd_num - 1) / 2)
+        length = codeword.shape[1] - self.len_dummy
+        codeword = np.pad(codeword[:,:length], ((0, 0), (0, self.len_dummy)), mode='constant')
         rf_signal = (np.convolve(self.bd_di_coef[0, :], codeword[0, :])
-               [tap_bd_num_side:-tap_bd_num_side].reshape(codeword.shape))
+               [:-(tap_bd_num - 1)].reshape(codeword.shape))
         
         return rf_signal
     

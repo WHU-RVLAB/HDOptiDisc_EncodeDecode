@@ -43,10 +43,10 @@ if __name__ == '__main__':
     ]
     Ys = [
     {'data': symbol_response, 'label': 'BDs Symbol Response', 'color': 'black'},
-    {'data': target_pr1, 'label': 'PR [1 2 2 1] Response', 'color': 'darkorange'},
-    {'data': target_pr2, 'label': 'PR [1 3 3 1] Response', 'color': 'green'},
+    {'data': target_pr1, 'label': 'PR [1 2 2 1] Response', 'color': 'red'},
+    {'data': target_pr2, 'label': 'PR [1 3 3 1] Response', 'color': 'springgreen'},
     {'data': target_pr3, 'label': 'PR [1 2 2 2 1] Response', 'color': 'deeppink'},
-    {'data': target_pr4, 'label': 'PR [1 2 3 3 2 1] Response', 'color': 'blue'},
+    {'data': target_pr4, 'label': 'PR [1 2 3 3 2 1] Response', 'color': 'blue', 'linestyle':'--'},
     ]
     titles = [
         'BDs Symbol Response',
@@ -73,10 +73,10 @@ if __name__ == '__main__':
     _, target_pr4_fft_magnitude = Fourier_Analysis(target_pr4, sample_periods = sample_periods, T_L = BD_T_L, downsample_factor = downsample_factor)
     Ys = [
     {'data': symbol_response_fft_magnitude / max(symbol_response_fft_magnitude), 'label': 'BDs Symbol Response', 'color': 'black'},
-    {'data': target_pr1_fft_magnitude / max(target_pr1_fft_magnitude), 'label': 'PR [1 2 2 1] Response', 'color': 'darkorange'},
-    {'data': target_pr2_fft_magnitude / max(target_pr2_fft_magnitude), 'label': 'PR [1 3 3 1] Response', 'color': 'green'},
+    {'data': target_pr1_fft_magnitude / max(target_pr1_fft_magnitude), 'label': 'PR [1 2 2 1] Response', 'color': 'red'},
+    {'data': target_pr2_fft_magnitude / max(target_pr2_fft_magnitude), 'label': 'PR [1 3 3 1] Response', 'color': 'springgreen'},
     {'data': target_pr3_fft_magnitude / max(target_pr3_fft_magnitude), 'label': 'PR [1 2 2 2 1] Response', 'color': 'deeppink'},
-    {'data': target_pr4_fft_magnitude / max(target_pr4_fft_magnitude), 'label': 'PR [1 2 3 3 2 1] Response', 'color': 'blue'},
+    {'data': target_pr4_fft_magnitude / max(target_pr4_fft_magnitude), 'label': 'PR [1 2 3 3 2 1] Response', 'color': 'blue', 'linestyle':'--'},
     ]
     plot_altogether(
         X=Normalized_f, 
@@ -109,10 +109,10 @@ if __name__ == '__main__':
     ]
     Ys = [
     {'data': symbol_response, 'label': 'BDs Symbol Response', 'color': 'black'},
-    {'data': target_pr1, 'label': 'PR [1 2 2 1] Response', 'color': 'darkorange'},
-    {'data': target_pr2, 'label': 'PR [1 3 3 1] Response', 'color': 'green'},
+    {'data': target_pr1, 'label': 'PR [1 2 2 1] Response', 'color': 'red'},
+    {'data': target_pr2, 'label': 'PR [1 3 3 1] Response', 'color': 'springgreen'},
     {'data': target_pr3, 'label': 'PR [1 2 2 2 1] Response', 'color': 'deeppink'},
-    {'data': target_pr4, 'label': 'PR [1 2 3 3 2 1] Response', 'color': 'blue'},
+    {'data': target_pr4, 'label': 'PR [1 2 3 3 2 1] Response', 'color': 'blue', 'linestyle':'--'},
     ]
     titles = [
         'HDDVDs Symbol Response',
@@ -139,10 +139,10 @@ if __name__ == '__main__':
     _, target_pr4_fft_magnitude = Fourier_Analysis(target_pr4, sample_periods = sample_periods, T_L = HDDVD_T_L, downsample_factor = downsample_factor)
     Ys = [
     {'data': symbol_response_fft_magnitude / max(symbol_response_fft_magnitude), 'label': 'HDDVDs Symbol Response', 'color': 'black'},
-    {'data': target_pr1_fft_magnitude / max(target_pr1_fft_magnitude), 'label': 'PR [1 2 2 1] Response', 'color': 'darkorange'},
-    {'data': target_pr2_fft_magnitude / max(target_pr2_fft_magnitude), 'label': 'PR [1 3 3 1] Response', 'color': 'green'},
+    {'data': target_pr1_fft_magnitude / max(target_pr1_fft_magnitude), 'label': 'PR [1 2 2 1] Response', 'color': 'red'},
+    {'data': target_pr2_fft_magnitude / max(target_pr2_fft_magnitude), 'label': 'PR [1 3 3 1] Response', 'color': 'springgreen'},
     {'data': target_pr3_fft_magnitude / max(target_pr3_fft_magnitude), 'label': 'PR [1 2 2 2 1] Response', 'color': 'deeppink'},
-    {'data': target_pr4_fft_magnitude / max(target_pr4_fft_magnitude), 'label': 'PR [1 2 3 3 2 1] Response', 'color': 'blue'},
+    {'data': target_pr4_fft_magnitude / max(target_pr4_fft_magnitude), 'label': 'PR [1 2 3 3 2 1] Response', 'color': 'blue', 'linestyle':'--'},
     ]
     plot_altogether(
         X=Normalized_f, 

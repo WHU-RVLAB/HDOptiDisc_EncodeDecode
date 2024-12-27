@@ -3,7 +3,7 @@ import numpy as np
 
 def plot_altogether(X, Ys, title, xlabel, ylabel, xtick_interval=None, ytick_interval=None):
     for Y in Ys:
-        plt.plot(X, Y['data'], label=Y['label'], color=Y['color'])
+        plt.plot(X, Y['data'], label=Y['label'], color=Y['color'], linestyle=Y.get('linestyle', '-')) 
     plt.title(title)
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
@@ -18,23 +18,23 @@ def plot_altogether(X, Ys, title, xlabel, ylabel, xtick_interval=None, ytick_int
     plt.show()
 
 def plot_separated(Xs, Ys, titles, xlabels, ylabels, Xtick_intervals=[None], Ytick_intervals=[None]):
-    cols = 2 if len(Ys) > 3 else 1
+    cols = 3 if len(Ys) > 5 else 2 if len(Ys) > 3 else 1
     rows = len(Ys) // cols if len(Ys) % cols == 0 else len(Ys) // cols + 1
 
     fig, axes = plt.subplots(rows, cols, figsize=(10, rows * 4))
     axes = axes.flatten()
     
     if Xtick_intervals == [None]:
-        Xtick_intervals *= len(Xs)
+        Xtick_intervals = [None] * len(Xs)
     if Ytick_intervals == [None]:
-        Ytick_intervals *= len(Xs)
+        Ytick_intervals = [None] * len(Ys)
 
     for i, (X, Y, xtick_interval, ytick_interval) in enumerate(zip(Xs, Ys, Xtick_intervals, Ytick_intervals)):
         ax = axes[i]
         if Y['label'] == 'binary Sequence':
             ax.stem(X, Y['data'], label=Y['label'], basefmt=" ", use_line_collection=True)
         else:
-            ax.plot(X, Y['data'], label=Y['label'], color=Y['color'])
+            ax.plot(X, Y['data'], label=Y['label'], color=Y['color'], linestyle=Y.get('linestyle', '-'))
         ax.axhline(0, color='black', linewidth=0.5)
         ax.axvline(0, color='black', linewidth=0.5)
         ax.set_title(titles[i] if i < len(titles) else titles[0])
@@ -45,7 +45,7 @@ def plot_separated(Xs, Ys, titles, xlabels, ylabels, Xtick_intervals=[None], Yti
         if xtick_interval is not None:
             ax.set_xticks(np.arange(min(X), max(X) + xtick_interval, xtick_interval))
         if ytick_interval is not None:
-            ax.set_yticks(np.arange(min(np.min(Y['data']) for Y in Ys), max(np.max(Y['data']) for Y in Ys) + ytick_interval, ytick_interval))
+            ax.set_yticks(np.arange(min(Y), max(Y) + ytick_interval, ytick_interval))
 
     for j in range(i + 1, len(axes)):
         fig.delaxes(axes[j])
