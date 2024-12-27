@@ -34,6 +34,7 @@ def realistic_sys():
     # constant and input paras
     encoder_dict, encoder_definite = RLL_state_machine()
     channel_dict, dummy_dict, ini_metric = Target_channel_state_machine()
+    ini_metric_pr = ini_metric
     
     # rate for constrained code
     num_sym_in_constrain = encoder_dict[1]['input'].shape[1]
@@ -41,7 +42,6 @@ def realistic_sys():
     rate_constrain = num_sym_in_constrain / num_sym_out_constrain
     dummy_len = int(args.overlap_len * num_sym_in_constrain 
                  / num_sym_out_constrain)
-    codeword_len = int(args.equalizer_train_len/rate_constrain)
     
     # class
     RLL_modulator = RLL_Modulator(encoder_dict, encoder_definite)
@@ -140,6 +140,7 @@ def realistic_sys():
     
     # define ber
     num_ber = int((args.snr_stop-args.snr_start)/args.snr_step+1)
+    codeword_real_len = int(args.info_len+dummy_len)
     ber_channel = np.zeros((1, num_ber))
     ber_info = np.zeros((1, num_ber))
     
@@ -156,6 +157,7 @@ def realistic_sys():
         
         length = equalizer_input_real.shape[1]
         decodeword = np.empty((1, 0))
+        decodeword_pr = np.empty((1, 0))
         for pos in range(0, length - args.overlap_len, args.truncation_len):
             
             codeword_truncation = codeword_real[:, pos:pos+args.truncation_len+args.overlap_len]
@@ -169,6 +171,10 @@ def realistic_sys():
             dec_tmp, metric_next = viterbi_decoder.vit_dec(detector_input, ini_metric)
             ini_metric = metric_next
             decodeword = np.append(decodeword, dec_tmp, axis=1)
+            
+            dec_tmp_pr, metric_next_pr = viterbi_decoder.vit_dec(pr_signal_truncation, ini_metric_pr)
+            ini_metric_pr = metric_next_pr
+            decodeword_pr = np.append(decodeword_pr, dec_tmp_pr, axis=1)
             
             # # eval mode 
             # # Guarantees that the equalizer can track changes in channel characteristics
@@ -250,59 +256,14 @@ def realistic_sys():
         
         print("The SNR is:")
         print(snr)
-        ber = (np.count_nonzero(np.abs(codeword[:, 0:codeword_len] - decodeword[:, 0:codeword_len])) 
-               / codeword_len)
+        ber = (np.count_nonzero(np.abs(codeword_real[:, 0:codeword_real_len] - decodeword[:, 0:codeword_real_len])) 
+               / codeword_real_len)
         print("The bit error rate (BER) is:")
         print(ber)
-
-def test_sys():
-    
-    # constant and input paras
-    encoder_dict, encoder_definite = RLL_state_machine()
-    channel_dict, dummy_dict, ini_metric = Target_channel_state_machine()
-    
-    # rate for constrained code
-    num_sym_in_constrain = encoder_dict[1]['input'].shape[1]
-    num_sym_out_constrain = encoder_dict[1]['output'].shape[1]
-    rate_constrain = num_sym_in_constrain / num_sym_out_constrain
-    dummy_len = int(args.overlap_len * num_sym_in_constrain 
-                 / num_sym_out_constrain)
-    codeword_len = int(args.info_len/rate_constrain)
-    
-    # class
-    RLL_modulator = RLL_Modulator(encoder_dict, encoder_definite)
-    NRZI_converter = NRZI_Converter()
-    target_pr_channel = Target_PR_Channel(channel_dict, dummy_dict, channel_dict['ini_state'])
-    viterbi_decoder = Viterbi(channel_dict, ini_metric)
-    
-    # define ber
-    num_ber = int((args.snr_stop-args.snr_start)/args.snr_step+1)
-    ber_channel = np.zeros((1, num_ber))
-    ber_info = np.zeros((1, num_ber))
-    
-    for idx in np.arange(0, num_ber):
-        snr = args.snr_start+idx*args.snr_step
-        
-        info = np.random.randint(2, size = (1, args.info_len+dummy_len))
-        codeword = NRZI_converter.forward_coding(RLL_modulator.forward_coding(info))
-        
-        pr_signal = target_pr_channel.target_channel(codeword)
-        detector_input_target_pr = target_pr_channel.awgn(pr_signal, snr)
-        
-        length = detector_input_target_pr.shape[1]
-        decodeword = np.empty((1, 0))
-        for pos in range(0, length - args.overlap_len, args.truncation_len):
-            detector_input_target_pr_truncation = detector_input_target_pr[:, pos:pos+args.truncation_len+args.overlap_len]
-            dec_tmp, metric_next = viterbi_decoder.vit_dec(detector_input_target_pr_truncation, ini_metric)
-            ini_metric = metric_next
-            decodeword = np.append(decodeword, dec_tmp, axis=1)
-        
-        print("The SNR is:")
-        print(snr)
-        ber = (np.count_nonzero(np.abs(codeword[:, 0:codeword_len] - decodeword[:, 0:codeword_len])) 
-               / codeword_len)
-        print("The bit error rate (BER) is:")
-        print(ber)
+        ber_pr = (np.count_nonzero(np.abs(codeword_real[:, 0:codeword_real_len] - decodeword_pr[:, 0:codeword_real_len])) 
+               / codeword_real_len)
+        print("The bit error rate (BER) in Target PR channel is:")
+        print(ber_pr)
 
 ## Decoder: Viterbi decoder
 class Viterbi(object):
@@ -409,4 +370,3 @@ class Viterbi(object):
 
 if __name__ == '__main__':
     realistic_sys()
-    # test_sys()
