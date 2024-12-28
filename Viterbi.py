@@ -154,6 +154,7 @@ def realistic_sys():
         rf_signal_real = disk_read_channel.RF_signal(codeword_real)
         equalizer_input_real = disk_read_channel.awgn(rf_signal_real, snr)
         pr_signal_real = target_pr_channel.target_channel(codeword_real)
+        pr_signal_real_noise = target_pr_channel.awgn(pr_signal_real, snr)
         
         length = equalizer_input_real.shape[1]
         decodeword = np.empty((1, 0))
@@ -164,6 +165,7 @@ def realistic_sys():
             rf_signal_truncation = rf_signal_real[:, pos:pos+args.truncation_len+args.overlap_len]
             equalizer_input_truncation = equalizer_input_real[:, pos:pos+args.truncation_len+args.overlap_len]
             pr_signal_truncation = pr_signal_real[:, pos:pos+args.truncation_len+args.overlap_len]
+            pr_signal_noise_truncation = pr_signal_real_noise[:, pos:pos+args.truncation_len+args.overlap_len]
             
             pr_adaptive_equalizer.equalizer_input = equalizer_input_truncation
             detector_input = pr_adaptive_equalizer.equalized_signal()
@@ -172,7 +174,7 @@ def realistic_sys():
             ini_metric = metric_next
             decodeword = np.append(decodeword, dec_tmp, axis=1)
             
-            dec_tmp_pr, metric_next_pr = viterbi_decoder.vit_dec(pr_signal_truncation, ini_metric_pr)
+            dec_tmp_pr, metric_next_pr = viterbi_decoder.vit_dec(pr_signal_noise_truncation, ini_metric_pr)
             ini_metric_pr = metric_next_pr
             decodeword_pr = np.append(decodeword_pr, dec_tmp_pr, axis=1)
             
@@ -189,6 +191,7 @@ def realistic_sys():
                 Normalized_t,
                 Normalized_t,
                 Normalized_t,
+                Normalized_t,
                 Normalized_t
             ]
             Ys = [
@@ -197,6 +200,7 @@ def realistic_sys():
                 {'data': equalizer_input_truncation.reshape(-1), 'label': 'equalizer_input_truncation', 'color': 'red'},
                 {'data': pr_signal_truncation.reshape(-1), 'label': 'pr_signal_truncation', 'color': 'red'},
                 {'data': detector_input.reshape(-1), 'label': 'detector_input', 'color': 'red'},
+                {'data': pr_signal_noise_truncation.reshape(-1), 'label': 'pr_signal_noise_truncation', 'color': 'red'},
             ]
             titles = [
                 'codeword_truncation',
@@ -204,6 +208,7 @@ def realistic_sys():
                 'equalizer_input_truncation',
                 'pr_signal_truncation',
                 'detector_input',
+                'pr_signal_noise_truncation'
             ]
             xlabels = ["Time (t/T)"]
             ylabels = [
@@ -211,7 +216,8 @@ def realistic_sys():
                 "Amplitude",
                 "Amplitude",
                 "Amplitude",
-                "Amplitude"
+                "Amplitude",
+                "Amplitude",
             ]
             # plot_separated(
             #     Xs=Xs, 
