@@ -33,7 +33,6 @@ def RLL_state_machine():
 
 # Constant
 def Target_channel_state_machine():
-    
     # channel state machine
     channel_dict = {
         'state_machine' : np.array([
@@ -53,17 +52,98 @@ def Target_channel_state_machine():
         'ini_state' : 0
     }
     
-    # List of dummy bits paths
-    dummy_dict = {
-        0 : np.array([[0, 0, 0, 0, 0]]), 1 : np.array([[2, 3, 7, 5, 0]]),
-        2 : np.array([[3, 7, 5, 0, 0]]), 3 : np.array([[7, 5, 0, 0, 0]]),
-        4 : np.array([[8, 7, 5, 0, 0]]), 5 : np.array([[0, 0, 0, 0, 0]]),
-        6 : np.array([[2, 3, 7, 5, 0]]), 7 : np.array([[5, 0, 0, 0, 0]]),
-        8 : np.array([[7, 5, 0, 0, 0]]), 9 : np.array([[8, 7, 5, 0, 0]])
+    return channel_dict
+
+# Constant
+def Target_channel_dummy_bits():
+    # List of transition paths from zero state to start state
+    dummy_start_paths = {
+        0 : np.array([[0, 0, 0, 0, 0]]), 
+        1 : np.array([[0, 0, 0, 0, 1]]),
+        2 : np.array([[0, 0, 0, 1, 2]]), 
+        3 : np.array([[0, 0, 1, 2, 3]]),
+        4 : np.array([[0, 0, 1, 2, 4]]), 
+        5 : np.array([[1, 2, 3, 7, 5]]),
+        6 : np.array([[1, 2, 3, 7, 6]]), 
+        7 : np.array([[0, 1, 2, 3, 7]]),
+        8 : np.array([[0, 1, 2, 4, 8]]), 
+        9 : np.array([[0, 1, 2, 4, 9]])
+    }
+
+    # corresponds to input bits in dummy_start_paths
+    dummy_start_input = {
+        0 : np.array([[0, 0, 0, 0, 0]]), 
+        1 : np.array([[0, 0, 0, 0, 1]]),
+        2 : np.array([[0, 0, 0, 1, 1]]), 
+        3 : np.array([[0, 0, 1, 1, 0]]),
+        4 : np.array([[0, 0, 1, 1, 1]]), 
+        5 : np.array([[1, 1, 0, 0, 0]]), 
+        6 : np.array([[1, 1, 0, 0, 1]]), 
+        7 : np.array([[0, 1, 1, 0, 0]]), 
+        8 : np.array([[0, 1, 1, 1, 0]]), 
+        9 : np.array([[0, 1, 1, 1, 1]]),
+    }
+
+    # corresponds to channel output in dummy_start_paths
+    dummy_start_output = {
+        0 : np.array([[0, 0, 0, 0, 0]]), 
+        1 : np.array([[0, 0, 0, 0, 1]]),
+        2 : np.array([[0, 0, 0, 1, 3]]), 
+        3 : np.array([[0, 0, 1, 3, 4]]),
+        4 : np.array([[0, 0, 1, 3, 5]]), 
+        5 : np.array([[1, 3, 4, 4, 3]]),
+        6 : np.array([[1, 3, 4, 4, 4]]), 
+        7 : np.array([[0, 1, 3, 4, 4]]),
+        8 : np.array([[0, 1, 3, 5, 6]]), 
+        9 : np.array([[0, 1, 3, 3, 7]])
+    }
+
+    dummy_start_eval = np.array([[0, 0, 0, 0, 0]])
+
+    # List of transition paths from end state to zero state 
+    dummy_end_paths = {
+        0 : np.array([[0, 0, 0, 0, 0]]), 
+        1 : np.array([[2, 3, 7, 5, 0]]),
+        2 : np.array([[3, 7, 5, 0, 0]]), 
+        3 : np.array([[7, 5, 0, 0, 0]]),
+        4 : np.array([[8, 7, 5, 0, 0]]), 
+        5 : np.array([[0, 0, 0, 0, 0]]),
+        6 : np.array([[2, 3, 7, 5, 0]]), 
+        7 : np.array([[5, 0, 0, 0, 0]]),
+        8 : np.array([[7, 5, 0, 0, 0]]), 
+        9 : np.array([[8, 7, 5, 0, 0]])
+    }
+
+    # corresponds to input bits in dummy_end_paths
+    dummy_end_input = {
+        0 : np.array([[0, 0, 0, 0, 0]]), 
+        1 : np.array([[1, 0, 0, 0, 0]]),
+        2 : np.array([[0, 0, 0, 0, 0]]), 
+        3 : np.array([[0, 0, 0, 0, 0]]),
+        4 : np.array([[0, 0, 0, 0, 0]]), 
+        5 : np.array([[0, 0, 0, 0, 0]]), 
+        6 : np.array([[1, 0, 0, 0, 0]]), 
+        7 : np.array([[0, 0, 0, 0, 0]]), 
+        8 : np.array([[0, 0, 0, 0, 0]]), 
+        9 : np.array([[0, 0, 0, 0, 0]]),
     }
     
-    # Initial metric 
-    ini_metric = 1000 * np.ones((channel_dict['num_state'], 1))
-    ini_metric[0, 0] = 0
+    # corresponds to channel output in dummy_end_paths
+    dummy_end_output = {
+        0 : np.array([[0, 0, 0, 0, 0]]), 
+        1 : np.array([[3, 4, 4, 3, 1]]),
+        2 : np.array([[4, 4, 3, 1, 0]]), 
+        3 : np.array([[4, 3, 1, 0, 0]]),
+        4 : np.array([[6, 5, 3, 1, 0]]), 
+        5 : np.array([[1, 0, 0, 0, 0]]),
+        6 : np.array([[4, 4, 4, 3, 1]]), 
+        7 : np.array([[3, 1, 0, 0, 0]]), 
+        8 : np.array([[5, 3, 1, 0, 0]]), 
+        9 : np.array([[7, 5, 3, 1, 0]]),
+    }
     
-    return channel_dict, dummy_dict, ini_metric
+    dummy_end_eval = np.array([[0, 0, 0, 0, 0]])
+
+    
+    return dummy_start_paths, dummy_start_input, dummy_start_output, dummy_start_eval, \
+    dummy_end_paths, dummy_end_input, dummy_end_output, dummy_end_eval

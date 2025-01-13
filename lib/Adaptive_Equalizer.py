@@ -4,7 +4,7 @@ import numpy as np
 sys.path.append(
     os.path.dirname(
         os.path.abspath(__file__)))
-from Const import RLL_state_machine, Target_channel_state_machine
+from Const import RLL_state_machine, Target_channel_state_machine, Target_channel_dummy_bits
 from Channel_Modulator import RLL_Modulator
 from Channel_Converter import NRZI_Converter
 from Disk_Read_Channel import Disk_Read_Channel
@@ -63,11 +63,13 @@ class Adaptive_Equalizer(object):
             
         return equalizer_output
 
-if __name__ == '__main__':
-    
+if __name__ == '__main__':  
+
     # constant and input paras
     encoder_dict, encoder_definite = RLL_state_machine()
-    channel_dict, dummy_dict, ini_metric = Target_channel_state_machine()
+    channel_dict = Target_channel_state_machine()
+    dummy_start_paths, dummy_start_input, dummy_start_output, dummy_start_eval, \
+    dummy_end_paths, dummy_end_input, dummy_end_output, dummy_end_eval = Target_channel_dummy_bits()
     
     # rate for constrained code
     num_sym_in_constrain = encoder_dict[1]['input'].shape[1]
@@ -81,7 +83,7 @@ if __name__ == '__main__':
     RLL_modulator = RLL_Modulator(encoder_dict, encoder_definite)
     NRZI_converter = NRZI_Converter()
     disk_read_channel = Disk_Read_Channel()
-    target_pr_channel = Target_PR_Channel(channel_dict, dummy_dict, channel_dict['ini_state'])
+    target_pr_channel = Target_PR_Channel(channel_dict, dummy_end_paths, channel_dict['ini_state'])
     
     code_rate = 2/3
     Normalized_t = np.linspace(1, int((equalizer_train_len+dummy_len)/code_rate), int((equalizer_train_len+dummy_len)/code_rate))
@@ -169,19 +171,19 @@ if __name__ == '__main__':
     )
         
     info = np.random.randint(2, size = (1, info_len+dummy_len))
-    codeword_real = NRZI_converter.forward_coding(RLL_modulator.forward_coding(info))
+    codeword = NRZI_converter.forward_coding(RLL_modulator.forward_coding(info))
     
-    rf_signal_real = disk_read_channel.RF_signal(codeword_real)
-    equalizer_input_real = disk_read_channel.awgn(rf_signal_real, snr)
-    pr_signal_real = target_pr_channel.target_channel(codeword_real)
+    rf_signal = disk_read_channel.RF_signal(codeword)
+    equalizer_input = disk_read_channel.awgn(rf_signal, snr)
+    pr_signal = target_pr_channel.target_channel(codeword)
     
-    length = equalizer_input_real.shape[1]
+    length = equalizer_input.shape[1]
     for pos in range(0, length - overlap_len, truncation_len):
         
-        codeword_truncation = codeword_real[:, pos:pos+truncation_len+overlap_len]
-        rf_signal_truncation = rf_signal_real[:, pos:pos+truncation_len+overlap_len]
-        equalizer_input_truncation = equalizer_input_real[:, pos:pos+truncation_len+overlap_len]
-        pr_signal_truncation = pr_signal_real[:, pos:pos+truncation_len+overlap_len]
+        codeword_truncation = codeword[:, pos:pos+truncation_len+overlap_len]
+        rf_signal_truncation = rf_signal[:, pos:pos+truncation_len+overlap_len]
+        equalizer_input_truncation = equalizer_input[:, pos:pos+truncation_len+overlap_len]
+        pr_signal_truncation = pr_signal[:, pos:pos+truncation_len+overlap_len]
         
         pr_adaptive_equalizer.equalizer_input = equalizer_input_truncation
         detector_input = pr_adaptive_equalizer.equalized_signal()

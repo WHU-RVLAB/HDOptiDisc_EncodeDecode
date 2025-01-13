@@ -3,7 +3,7 @@ import numpy as np
 import sys
 np.set_printoptions(threshold=sys.maxsize)
 
-from lib.Const import RLL_state_machine, Target_channel_state_machine
+from lib.Const import RLL_state_machine, Target_channel_state_machine, Target_channel_dummy_bits
 from lib.Channel_Modulator import RLL_Modulator
 from lib.Channel_Converter import NRZI_Converter
 from lib.Disk_Read_Channel import Disk_Read_Channel
@@ -22,9 +22,9 @@ parser.add_argument('-equalizer_train_len', type=int, default=10000)
 parser.add_argument('-truncation_len', type=int, default=30)
 parser.add_argument('-overlap_len', type=int, default=30)
 
-parser.add_argument('-snr_start', type=float, default=40)
-parser.add_argument('-snr_stop', type=float, default=60)
-parser.add_argument('-snr_step', type=float, default=10)
+parser.add_argument('-snr_start', type=float, default=5)
+parser.add_argument('-snr_stop', type=float, default=40)
+parser.add_argument('-snr_step', type=float, default=1)
 
 global args
 args = parser.parse_args()
@@ -33,7 +33,13 @@ def realistic_sys():
     
     # constant and input paras
     encoder_dict, encoder_definite = RLL_state_machine()
-    channel_dict, dummy_dict, ini_metric = Target_channel_state_machine()
+    channel_dict = Target_channel_state_machine()
+    dummy_start_paths, dummy_start_input, dummy_start_output, dummy_start_eval, \
+    dummy_end_paths, dummy_end_input, dummy_end_output, dummy_end_eval = Target_channel_dummy_bits()
+
+    # Initial metric 
+    ini_metric = 1000 * np.ones((channel_dict['num_state'], 1))
+    ini_metric[0, 0] = 0
     ini_metric_pr = ini_metric
     
     # rate for constrained code
@@ -47,7 +53,7 @@ def realistic_sys():
     RLL_modulator = RLL_Modulator(encoder_dict, encoder_definite)
     NRZI_converter = NRZI_Converter()
     disk_read_channel = Disk_Read_Channel()
-    target_pr_channel = Target_PR_Channel(channel_dict, dummy_dict, channel_dict['ini_state'])
+    target_pr_channel = Target_PR_Channel(channel_dict, dummy_end_paths, channel_dict['ini_state'])
     viterbi_decoder = Viterbi(channel_dict, ini_metric)
     
     # train mode 
@@ -140,7 +146,7 @@ def realistic_sys():
     
     # define ber
     num_ber = int((args.snr_stop-args.snr_start)/args.snr_step+1)
-    codeword_real_len = int(args.info_len+dummy_len)
+    codeword_len = int(args.info_len+dummy_len)
     ber_channel = np.zeros((1, num_ber))
     ber_info = np.zeros((1, num_ber))
     
@@ -149,23 +155,23 @@ def realistic_sys():
         snr = args.snr_start+idx*args.snr_step
         
         info = np.random.randint(2, size = (1, args.info_len+dummy_len))
-        codeword_real = NRZI_converter.forward_coding(RLL_modulator.forward_coding(info))
+        codeword = NRZI_converter.forward_coding(RLL_modulator.forward_coding(info))
         
-        rf_signal_real = disk_read_channel.RF_signal(codeword_real)
-        equalizer_input_real = disk_read_channel.awgn(rf_signal_real, snr)
-        pr_signal_real = target_pr_channel.target_channel(codeword_real)
-        pr_signal_real_noise = target_pr_channel.awgn(pr_signal_real, snr)
+        rf_signal = disk_read_channel.RF_signal(codeword)
+        equalizer_input = disk_read_channel.awgn(rf_signal, snr)
+        pr_signal = target_pr_channel.target_channel(codeword)
+        pr_signal_noise = target_pr_channel.awgn(pr_signal, snr)
         
-        length = equalizer_input_real.shape[1]
+        length = equalizer_input.shape[1]
         decodeword = np.empty((1, 0))
         decodeword_pr = np.empty((1, 0))
         for pos in range(0, length - args.overlap_len, args.truncation_len):
             
-            codeword_truncation = codeword_real[:, pos:pos+args.truncation_len+args.overlap_len]
-            rf_signal_truncation = rf_signal_real[:, pos:pos+args.truncation_len+args.overlap_len]
-            equalizer_input_truncation = equalizer_input_real[:, pos:pos+args.truncation_len+args.overlap_len]
-            pr_signal_truncation = pr_signal_real[:, pos:pos+args.truncation_len+args.overlap_len]
-            pr_signal_noise_truncation = pr_signal_real_noise[:, pos:pos+args.truncation_len+args.overlap_len]
+            codeword_truncation = codeword[:, pos:pos+args.truncation_len+args.overlap_len]
+            rf_signal_truncation = rf_signal[:, pos:pos+args.truncation_len+args.overlap_len]
+            equalizer_input_truncation = equalizer_input[:, pos:pos+args.truncation_len+args.overlap_len]
+            pr_signal_truncation = pr_signal[:, pos:pos+args.truncation_len+args.overlap_len]
+            pr_signal_noise_truncation = pr_signal_noise[:, pos:pos+args.truncation_len+args.overlap_len]
             
             pr_adaptive_equalizer.equalizer_input = equalizer_input_truncation
             detector_input = pr_adaptive_equalizer.equalized_signal()
@@ -180,7 +186,6 @@ def realistic_sys():
             
             # # eval mode 
             # # Guarantees that the equalizer can track changes in channel characteristics
-            # # dec_tmp may not satisfy RLL(1,7) and NRZI constrained code
             # pr_adaptive_equalizer.equalizer_input  = equalizer_input_truncation
             # pr_adaptive_equalizer.reference_signal = pr_signal_truncation
             # detector_input_train, error_signal, error_signal_square, equalizer_coeffs = pr_adaptive_equalizer.lms()
@@ -262,21 +267,21 @@ def realistic_sys():
         
         print("The SNR is:")
         print(snr)
-        ber = (np.count_nonzero(np.abs(codeword_real[:, 0:codeword_real_len] - decodeword[:, 0:codeword_real_len])) 
-               / codeword_real_len)
+        ber = (np.count_nonzero(np.abs(codeword[:, 0:codeword_len] - decodeword[:, 0:codeword_len])) 
+               / codeword_len)
         print("The bit error rate (BER) is:")
         print(ber)
-        ber_pr = (np.count_nonzero(np.abs(codeword_real[:, 0:codeword_real_len] - decodeword_pr[:, 0:codeword_real_len])) 
-               / codeword_real_len)
+        ber_pr = (np.count_nonzero(np.abs(codeword[:, 0:codeword_len] - decodeword_pr[:, 0:codeword_len])) 
+               / codeword_len)
         print("The bit error rate (BER) in Target PR channel is:")
         print(ber_pr)
 
 ## Decoder: Viterbi decoder
 class Viterbi(object):
-    def __init__(self, channel_machine, ini_metric):
-        self.channel_machine = channel_machine
+    def __init__(self, channel_dict, ini_metric):
+        self.channel_dict = channel_dict
         self.ini_metric = ini_metric
-        self.num_state = self.channel_machine['num_state']
+        self.num_state = self.channel_dict['num_state']
     
     def vit_dec(self, r_truncation, ini_metric):
         
@@ -311,15 +316,15 @@ class Viterbi(object):
                                           np.zeros((self.num_state, 1)))
         
         for state in range(self.num_state):
-            set_in = np.where(self.channel_machine['state_machine'][:, 1]==state)[0]
+            set_in = np.where(self.channel_dict['state_machine'][:, 1]==state)[0]
             metric_tmp = np.zeros((set_in.shape[0], 1))
             for i in range(set_in.shape[0]):
-                metric_tmp[i, :] = (metric_last[self.channel_machine['state_machine'][set_in[i], 0], :][0] + 
-                                    self.euclidean_distance(r, self.channel_machine['in_out'][set_in[i], 1]))
+                metric_tmp[i, :] = (metric_last[self.channel_dict['state_machine'][set_in[i], 0], :][0] + 
+                                    self.euclidean_distance(r, self.channel_dict['in_out'][set_in[i], 1]))
             metric_survivor[state, :] = metric_tmp.min()
             # if we find equal minimum branch metric, we choose the upper path
             path_survivor[state, :] = (
-                self.channel_machine['state_machine'][set_in[np.where(metric_tmp==metric_tmp.min())[0][0]], 0])
+                self.channel_dict['state_machine'][set_in[np.where(metric_tmp==metric_tmp.min())[0][0]], 0])
         return path_survivor, metric_survivor
                 
     
@@ -338,23 +343,8 @@ class Viterbi(object):
                     int(path_truncation[state, i+1]), i])
         
         return path_truncation
-
-    def path_to_word(self, path, state):
-        '''
-        Input: (1, length) array
-        Output: (1, length-1) array
-        Mapping: connection between two states determines one word
-        '''
-        
-        length = path.shape[1]
-        word = np.zeros((1, length-1))
-        for i in range(length-1):
-            idx = find_index(self.channel_machine['state_machine'], path[state, i : i+2])
-            word[:, i] = self.channel_machine['in_out'][idx, 0]
-        
-        return word
     
-    def path_to_word_test(self, path, state):
+    def path_to_word(self, path, state):
         '''
         Input: (1, length) array
         Output: (1, length) array
@@ -364,11 +354,11 @@ class Viterbi(object):
         length = path.shape[1]
         word = np.zeros((1, length))
         for i in range(length-1):
-            idx = find_index(self.channel_machine['state_machine'], path[state, i : i+2])
-            word[:, i] = self.channel_machine['in_out'][idx, 0]
+            idx = find_index(self.channel_dict['state_machine'], path[state, i : i+2])
+            word[:, i] = self.channel_dict['in_out'][idx, 0]
         
-        idx = find_index(self.channel_machine['state_machine'], np.array([path[state, -1], state]))
-        word[:, -1] = self.channel_machine['in_out'][idx, 0]
+        idx = find_index(self.channel_dict['state_machine'], np.array([path[state, -1], state]))
+        word[:, -1] = self.channel_dict['in_out'][idx, 0]
         return word
     
     def euclidean_distance(self, x, y):

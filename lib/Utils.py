@@ -32,7 +32,7 @@ def plot_separated(Xs, Ys, titles, xlabels, ylabels, Xtick_intervals=[None], Yti
     for i, (X, Y, xtick_interval, ytick_interval) in enumerate(zip(Xs, Ys, Xtick_intervals, Ytick_intervals)):
         ax = axes[i]
         if Y['label'] == 'binary Sequence':
-            ax.stem(X, Y['data'], label=Y['label'], basefmt=" ", use_line_collection=True)
+            ax.stem(X, Y['data'], label=Y['label'], basefmt=" ")
         else:
             ax.plot(X, Y['data'], label=Y['label'], color=Y['color'], linestyle=Y.get('linestyle', '-'))
         ax.axhline(0, color='black', linewidth=0.5)
@@ -60,7 +60,13 @@ def Fourier_Analysis(signal, sample_periods, T_L, downsample_factor = 1):
     fft_magnitude = T_L*np.abs(np.fft.rfft(signal, n=sample_periods))
 
     return T_L*omega, fft_magnitude
-  
+
+def codeword_threshold(x):
+    # torch tensor: > 0.5 = 1; <= 0.5 = 0
+    x[x > 0.5] = 1
+    x[x <= 0.5] = 0
+    return x
+ 
 # find one idx for the matched sequence
 def find_index(all_array, element):
     all_array = all_array.tolist()
