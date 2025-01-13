@@ -2,16 +2,17 @@ Instead of the traditional Viterbi algorithm, we use the leading neural network 
 
 ## Docker environment setup
 
-Build the docker image with the following command
+Build image with no code inside the image
 ```bash
-## build image with no code inside the image
-docker build -f ./dockerfile --target base -t pr_nn:cuda .
+docker build -f ./dockerfile -t pr_nn:cuda .
 ```
 
-Run the docker image with the following command
+Run docker image with gpu
 ```bash
-## run the following command to mount the repo-folder
 docker run --gpus all --name pr_nn -it -v xx:xx pr_nn:cuda bash
-## or run the following command without gpu
+```
+Or without gpu
+```bash
 docker run --name pr_nn -it -v xx:xx pr_nn:cuda bash
 ```
+
