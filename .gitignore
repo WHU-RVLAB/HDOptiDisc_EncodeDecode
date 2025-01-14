@@ -1,4 +1,5 @@
-reference/**/*
-.vscode/**/*
-__pycache__/**/*
-lib/__pycache__/**/*
+**/.vscode/
+**/__pycache__/
+output/
+reference/
+data/

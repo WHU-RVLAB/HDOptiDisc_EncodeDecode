@@ -8,6 +8,6 @@ RUN apt-get update \
 
 # Installs python dependencies. 
 RUN pip install --upgrade pip \
-        && pip install matplotlib scipy numpy \
+        && pip install matplotlib scipy numpy h5py\
         && pip cache purge
 

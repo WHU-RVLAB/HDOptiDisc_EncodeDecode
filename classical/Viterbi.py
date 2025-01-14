@@ -1,8 +1,14 @@
 import argparse
 import numpy as np
 import sys
+import os
+sys.path.append("..")
 np.set_printoptions(threshold=sys.maxsize)
 
+sys.path.append(
+    os.path.dirname(
+        os.path.dirname(
+            os.path.abspath(__file__))))
 from lib.Const import RLL_state_machine, Target_channel_state_machine, Target_channel_dummy_bits
 from lib.Channel_Modulator import RLL_Modulator
 from lib.Channel_Converter import NRZI_Converter
@@ -10,6 +16,7 @@ from lib.Disk_Read_Channel import Disk_Read_Channel
 from lib.Target_PR_Channel import Target_PR_Channel
 from lib.Adaptive_Equalizer import Adaptive_Equalizer
 from lib.Utils import plot_separated, find_index
+sys.path.pop()
 
 import pdb
 
@@ -17,13 +24,12 @@ np.random.seed(12345)
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument('-info_len', type=int, default=1000000)
-parser.add_argument('-equalizer_train_len', type=int, default=10000)
+parser.add_argument('-info_len', type=int, default=1000)
 parser.add_argument('-truncation_len', type=int, default=30)
 parser.add_argument('-overlap_len', type=int, default=30)
 
-parser.add_argument('-snr_start', type=float, default=5)
-parser.add_argument('-snr_stop', type=float, default=40)
+parser.add_argument('-snr_start', type=float, default=30)
+parser.add_argument('-snr_stop', type=float, default=50)
 parser.add_argument('-snr_step', type=float, default=1)
 
 global args
@@ -56,93 +62,15 @@ def realistic_sys():
     target_pr_channel = Target_PR_Channel(channel_dict, dummy_end_paths, channel_dict['ini_state'])
     viterbi_decoder = Viterbi(channel_dict, ini_metric)
     
-    # train mode 
-    # Initial Convergence of Tap Coefficients for Adaptive Equalizers
-    snr = args.snr_start
-    code_rate = 2/3
-    Normalized_t = np.linspace(1, int((args.equalizer_train_len+dummy_len)/code_rate), int((args.equalizer_train_len+dummy_len)/code_rate))
-        
-    train_bits = np.random.randint(2, size = (1, args.equalizer_train_len+dummy_len))
-    codeword = NRZI_converter.forward_coding(RLL_modulator.forward_coding(train_bits))
-    
-    rf_signal = disk_read_channel.RF_signal(codeword)
-    equalizer_input = disk_read_channel.awgn(rf_signal, snr)
-    
-    pr_signal = target_pr_channel.target_channel(codeword)
-    
     pr_adaptive_equalizer = Adaptive_Equalizer(        
-        equalizer_input  = equalizer_input,
-        reference_signal = pr_signal,
+        equalizer_input  = None,
+        reference_signal = None,
         taps_num = 15,
         mu = 0.01
     )
-    detector_input, error_signal, error_signal_square, equalizer_coeffs = pr_adaptive_equalizer.lms()
-    
-    Xs = [
-        Normalized_t,
-        Normalized_t,
-        Normalized_t,
-        Normalized_t
-    ]
-    Ys = [
-        {'data': codeword.reshape(-1), 'label': 'binary Sequence'}, 
-        {'data': rf_signal.reshape(-1), 'label': 'rf_signal', 'color': 'red'},
-        {'data': equalizer_input.reshape(-1), 'label': f'equalizer_input_snr{snr}', 'color': 'red'},
-        {'data': pr_signal.reshape(-1), 'label': 'pr_signal', 'color': 'red'},
-    ]
-    titles = [
-        'Binary Sequence',
-        'rf_signal',
-        f'equalizer_input_snr{snr}',
-        'pr_signal',
-    ]
-    xlabels = ["Time (t/T)"]
-    ylabels = [
-        "Binary",
-        "Amplitude",
-        "Amplitude",
-        "Amplitude",
-    ]
-    plot_separated(
-        Xs=Xs, 
-        Ys=Ys, 
-        titles=titles,     
-        xlabels=xlabels, 
-        ylabels=ylabels
-    )
-    
-    Xs = [
-        Normalized_t,
-        Normalized_t,
-        Normalized_t,
-        np.arange(equalizer_coeffs.shape[1])
-    ]
-    Ys = [
-        {'data': detector_input.reshape(-1), 'label': 'detector_input', 'color': 'red'},
-        {'data': error_signal.reshape(-1), 'label': 'error_signal', 'color': 'red'},
-        {'data': error_signal_square.reshape(-1), 'label': 'error_signal_square', 'color': 'red'},
-        {'data': equalizer_coeffs.reshape(-1), 'label': 'equalizer_coeffs', 'color': 'red'}
-    ]
-    titles = [
-        'detector_input',
-        'error_signal',
-        'error_signal_square',
-        'equalizer_coeffs'
-    ]
-    xlabels = [
-        "Time (t/T)",
-        "Time (t/T)",
-        "Time (t/T)",
-        "equalizer_coeffs idx"
-    ]
-    ylabels = ["Amplitude"]
-    plot_separated(
-        Xs=Xs, 
-        Ys=Ys, 
-        titles=titles,     
-        xlabels=xlabels, 
-        ylabels=ylabels
-    )
+    pr_adaptive_equalizer.equalizer_coeffs = np.loadtxt("./data/equalizer_coeffs.txt").reshape(1, -1)
+    print("load equalizer_coeffs from txt")
+    print(f"equalizer_coeffs are {pr_adaptive_equalizer.equalizer_coeffs}")
     
     # define ber
     num_ber = int((args.snr_stop-args.snr_start)/args.snr_step+1)
@@ -190,40 +118,40 @@ def realistic_sys():
             # pr_adaptive_equalizer.reference_signal = pr_signal_truncation
             # detector_input_train, error_signal, error_signal_square, equalizer_coeffs = pr_adaptive_equalizer.lms()
             
-            Normalized_t = np.linspace(1, args.truncation_len+args.overlap_len, args.truncation_len+args.overlap_len)
-            Xs = [
-                Normalized_t,
-                Normalized_t,
-                Normalized_t,
-                Normalized_t,
-                Normalized_t,
-                Normalized_t
-            ]
-            Ys = [
-                {'data': codeword_truncation.reshape(-1), 'label': 'binary Sequence'}, 
-                {'data': rf_signal_truncation.reshape(-1), 'label': 'rf_signal_truncation', 'color': 'red'},
-                {'data': equalizer_input_truncation.reshape(-1), 'label': 'equalizer_input_truncation', 'color': 'red'},
-                {'data': pr_signal_truncation.reshape(-1), 'label': 'pr_signal_truncation', 'color': 'red'},
-                {'data': detector_input.reshape(-1), 'label': 'detector_input', 'color': 'red'},
-                {'data': pr_signal_noise_truncation.reshape(-1), 'label': 'pr_signal_noise_truncation', 'color': 'red'},
-            ]
-            titles = [
-                'codeword_truncation',
-                'rf_signal_truncation',
-                'equalizer_input_truncation',
-                'pr_signal_truncation',
-                'detector_input',
-                'pr_signal_noise_truncation'
-            ]
-            xlabels = ["Time (t/T)"]
-            ylabels = [
-                "Binary",
-                "Amplitude",
-                "Amplitude",
-                "Amplitude",
-                "Amplitude",
-                "Amplitude",
-            ]
+            # Normalized_t = np.linspace(1, args.truncation_len+args.overlap_len, args.truncation_len+args.overlap_len)
+            # Xs = [
+            #     Normalized_t,
+            #     Normalized_t,
+            #     Normalized_t,
+            #     Normalized_t,
+            #     Normalized_t,
+            #     Normalized_t
+            # ]
+            # Ys = [
+            #     {'data': codeword_truncation.reshape(-1), 'label': 'binary Sequence'}, 
+            #     {'data': rf_signal_truncation.reshape(-1), 'label': 'rf_signal_truncation', 'color': 'red'},
+            #     {'data': equalizer_input_truncation.reshape(-1), 'label': 'equalizer_input_truncation', 'color': 'red'},
+            #     {'data': pr_signal_truncation.reshape(-1), 'label': 'pr_signal_truncation', 'color': 'red'},
+            #     {'data': detector_input.reshape(-1), 'label': 'detector_input', 'color': 'red'},
+            #     {'data': pr_signal_noise_truncation.reshape(-1), 'label': 'pr_signal_noise_truncation', 'color': 'red'},
+            # ]
+            # titles = [
+            #     'codeword_truncation',
+            #     'rf_signal_truncation',
+            #     'equalizer_input_truncation',
+            #     'pr_signal_truncation',
+            #     'detector_input',
+            #     'pr_signal_noise_truncation'
+            # ]
+            # xlabels = ["Time (t/T)"]
+            # ylabels = [
+            #     "Binary",
+            #     "Amplitude",
+            #     "Amplitude",
+            #     "Amplitude",
+            #     "Amplitude",
+            #     "Amplitude",
+            # ]
             # plot_separated(
             #     Xs=Xs, 
             #     Ys=Ys, 

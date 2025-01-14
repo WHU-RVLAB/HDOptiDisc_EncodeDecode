@@ -14,8 +14,8 @@ sys.path.pop()
 
 import pdb
 
-info_len = 1000000
-equalizer_train_len = 10000
+info_len = 100
+equalizer_train_len = 1000000
 truncation_len =30
 overlap_len =30
 snr = 40
@@ -62,6 +62,15 @@ class Adaptive_Equalizer(object):
                [:-(self.taps_num-1)].reshape(self.equalizer_input.shape))
             
         return equalizer_output
+    
+    def save_equalizer_coeffs(self):
+        self.equalizer_coeffs_dir = "./data"
+        if not os.path.exists(self.equalizer_coeffs_dir):
+            os.makedirs(self.equalizer_coeffs_dir)
+        file_path = f"{self.equalizer_coeffs_dir}/equalizer_coeffs.txt"
+        np.savetxt(file_path, self.equalizer_coeffs)
+        print(f"save equalizer_coeffs to txt files:{file_path}")
+        print(f"equalizer_coeffs are {self.equalizer_coeffs}")
 
 if __name__ == '__main__':  
 
@@ -169,7 +178,9 @@ if __name__ == '__main__':
         xlabels=xlabels, 
         ylabels=ylabels
     )
-        
+    pr_adaptive_equalizer.save_equalizer_coeffs()
+
+    # validate  
     info = np.random.randint(2, size = (1, info_len+dummy_len))
     codeword = NRZI_converter.forward_coding(RLL_modulator.forward_coding(info))
     
