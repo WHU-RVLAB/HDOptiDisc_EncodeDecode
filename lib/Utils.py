@@ -73,3 +73,21 @@ def find_index(all_array, element):
     element = element.tolist()
     if element in all_array:
         return all_array.index(element)
+    
+def sliding_shape(x, input_size):
+    '''
+    Input: (1, length) numpy array
+    Output: (input_size, length) numpy array
+    Mapping: sliding window for each time step
+    '''
+    batch_size, time_step = x.shape
+    zero_padding_len = input_size - 1
+    
+    x = np.concatenate((np.zeros((batch_size, zero_padding_len)), x), axis=1)
+    y = np.zeros((batch_size, time_step, input_size))
+    
+    for bt in range(batch_size):
+        for time in range(time_step):
+            y[bt, time, :] = x[bt, time:time+input_size]
+    
+    return y.astype(np.float32)

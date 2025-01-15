@@ -16,10 +16,3 @@ Or without gpu
 docker run --name pr_nn -it -v xx:xx pr_nn:cuda bash
 ```
 
-my_package/
-    __init__.py
-    module1.py
-    module2.py
-work_dir/
-    test.py
-

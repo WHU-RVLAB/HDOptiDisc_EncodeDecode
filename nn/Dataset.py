@@ -5,7 +5,6 @@ import math
 import sys
 import torch
 from torch.utils.data import Dataset
-import h5py
 np.set_printoptions(threshold=sys.maxsize)
 
 sys.path.append(
@@ -13,6 +12,7 @@ sys.path.append(
         os.path.dirname(
             os.path.abspath(__file__))))
 from lib.Const import RLL_state_machine, Target_channel_state_machine, Target_channel_dummy_bits
+from lib.Utils import sliding_shape
 from lib.Channel_Modulator import RLL_Modulator
 from lib.Channel_Converter import NRZI_Converter
 from lib.Disk_Read_Channel import Disk_Read_Channel
@@ -23,17 +23,19 @@ sys.path.pop()
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument('-eval_info_length', type=int, default=1000000)
-parser.add_argument('-eval_length', type=int, default=10)
-parser.add_argument('-overlap_length', type=int, default=20)
+parser.add_argument('-eval_info_length', type=int, default=1000)
+
+parser.add_argument('-eval_length', type=int, default=30)
+parser.add_argument('-overlap_length', type=int, default=30)
 
 parser.add_argument('-batch_size_snr_train_1', type=int, default=30)
 parser.add_argument('-batch_size_snr_train_2', type=int, default=30)
 parser.add_argument('-batch_size_snr_validate_1', type=int, default=600)
 parser.add_argument('-batch_size_snr_validate_2', type=int, default=600)
-parser.add_argument('-snr_start', type=float, default=5)
+
+parser.add_argument('-snr_start', type=float, default=30)
 parser.add_argument('-snr_stop', type=float, default=40)
-parser.add_argument('-snr_step', type=float, default=0.5)
+parser.add_argument('-snr_step', type=float, default=1)
 
 parser.add_argument('-input_size', type=int, default=5)
 
@@ -41,25 +43,18 @@ parser.add_argument('-train_set_batches', type=int, default=10)
 parser.add_argument('-test_set_batches', type=int, default=2)
 parser.add_argument('-validate_set_batches', type=int, default=2)
 
-class H5Dataset(Dataset):
-    def __init__(self, h5_file, transform=None):
-        self.h5_file = h5py.File(h5_file, 'r')
-        
-        self.data = self.h5_file['data']
-        self.label = self.h5_file['label']
+class PthDataset(Dataset):
+    def __init__(self, file_path):
+        data = torch.load(file_path)
+        self.data = torch.from_numpy(data['data']).float()
+        self.label = torch.from_numpy(data['label']).float()
 
     def __len__(self):
         return len(self.data)
 
     def __getitem__(self, idx):
-        data  = torch.from_numpy(self.data[idx, :, :]).float()
-        label = torch.from_numpy(self.label[idx, :]).float()
-        
-        return data, label
-
-    def __del__(self):
-        self.h5_file.close()
-
+        return self.data[idx, :, :], self.label[idx, :]
+    
 ## Rawdb: generate rawdb for neural network
 class Rawdb(object):
     def __init__(self, args, encoder_dict, encoder_definite, channel_dict):
@@ -124,10 +119,10 @@ class Rawdb(object):
                 
                 data_2[int(idx*bt_size_snr_2+i) : int(idx*bt_size_snr_2+i+1), :] = equalizer_input
         
-        data = np.append(data_1, data_2, axis=0)
-        label = np.append(label_1, label_2, axis=0)
+        data = np.concatenate((data_1, data_2), axis=0)
+        label = np.concatenate((label_1, label_2), axis=0)
         
-        data = self.sliding_shape(data)
+        data = sliding_shape(data, self.args.input_size)
         label = label
         
         return data, label
@@ -143,33 +138,19 @@ class Rawdb(object):
         rf_signal = self.disk_read_channel.RF_signal(codeword)
         equalizer_input = self.disk_read_channel.awgn(rf_signal, snr)
 
-        block_length = args.eval_length + args.overlap_length
-        equalizer_input = equalizer_input.reshape(-1, block_length)
-        codeword = codeword.reshape(-1, block_length)
+        equalizer_input = np.concatenate((equalizer_input, (np.zeros((1, args.overlap_length)))), axis=1)
 
-        data = self.sliding_shape(equalizer_input)
-        label = codeword
+        block_length = args.eval_length + args.overlap_length
+        sliding_equalizer_input = np.empty((0, block_length))
+        x_len = equalizer_input.shape[1]
+        for idx in range(block_length, x_len + 1, args.eval_length):
+            block = equalizer_input[:, idx-block_length : idx]
+            sliding_equalizer_input = np.append(sliding_equalizer_input, block, axis=0)
+
+        data = sliding_shape(sliding_equalizer_input, self.args.input_size)
+        label = codeword.reshape(-1, args.eval_length)
         
         return data, label
-    
-    def sliding_shape(self, x):
-        '''
-        Input: (1, length) numpy array
-        Output: (input_size, length) numpy array
-        Mapping: sliding window for each time step
-        '''
-        
-        batch_size, time_step = x.shape
-        zero_padding_len = args.input_size - 1
-        
-        x = np.concatenate((np.zeros((batch_size, zero_padding_len)), x), axis=1)
-        y = np.zeros((batch_size, time_step, args.input_size))
-        
-        for bt in range(batch_size):
-            for time in range(time_step):
-                y[bt, time, :] = x[bt, time:time+args.input_size]
-        
-        return y.astype(np.float32)
     
     def build_rawdb(self, data_dir):
 
@@ -191,10 +172,11 @@ class Rawdb(object):
             data = np.append(data, data_train, axis=0)
             label = np.append(label, label_train, axis=0)
 
-        file_path = f"{data_dir}/train_set.h5"
-        with h5py.File(file_path, 'w') as f:
-            f.create_dataset('data', data=data)
-            f.create_dataset('label', data=label)
+        file_path = f"{data_dir}/train_set.pth"
+        torch.save({
+            'data': data,
+            'label': label
+        }, file_path)
 
         data = np.empty((0, block_length, args.input_size))
         label = np.empty((0, block_length))
@@ -209,13 +191,14 @@ class Rawdb(object):
             data = np.append(data, data_test, axis=0)
             label = np.append(label, label_test, axis=0)
 
-        file_path = f"{data_dir}/test_set.h5"
-        with h5py.File(file_path, 'w') as f:
-            f.create_dataset('data', data=data)
-            f.create_dataset('label', data=label)
+        file_path = f"{data_dir}/test_set.pth"
+        torch.save({
+            'data': data,
+            'label': label
+        }, file_path)
 
         data = np.empty((0, block_length, args.input_size))
-        label = np.empty((0, block_length))
+        label = np.empty((0, args.eval_length))
         for idx in range(args.validate_set_batches):
 
             miu = (0.1 + 0.9)/2
@@ -226,16 +209,17 @@ class Rawdb(object):
             miu = (args.snr_start + args.snr_stop)/2
             sigma = (args.snr_stop - miu)/2
             random_snr = np.random.normal(miu, sigma)
-            random_snr = min(max(random_p, args.snr_start), args.snr_stop)
+            random_snr = min(max(random_snr, args.snr_start), args.snr_stop)
 
             data_val, label_val = self.data_generation_eval(random_p, random_snr)
             data = np.append(data, data_val, axis=0)
             label = np.append(label, label_val, axis=0)
 
-        file_path = f"{data_dir}/validate_set.h5"
-        with h5py.File(file_path, 'w') as f:
-            f.create_dataset('data', data=data)
-            f.create_dataset('label', data=label)
+        file_path = f"{data_dir}/validate_set.pth"
+        torch.save({
+            'data': data,
+            'label': label
+        }, file_path)
 
 if __name__ == '__main__':
     args = parser.parse_args()
