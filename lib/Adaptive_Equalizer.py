@@ -64,7 +64,7 @@ class Adaptive_Equalizer(object):
         return equalizer_output
     
     def save_equalizer_coeffs(self):
-        self.equalizer_coeffs_dir = "./data"
+        self.equalizer_coeffs_dir = "../data"
         if not os.path.exists(self.equalizer_coeffs_dir):
             os.makedirs(self.equalizer_coeffs_dir)
         file_path = f"{self.equalizer_coeffs_dir}/equalizer_coeffs.txt"

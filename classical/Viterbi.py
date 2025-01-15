@@ -24,9 +24,10 @@ np.random.seed(12345)
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument('-info_len', type=int, default=1000)
-parser.add_argument('-truncation_len', type=int, default=30)
-parser.add_argument('-overlap_len', type=int, default=30)
+parser.add_argument('-info_len', type=int, default=1000000)
+
+parser.add_argument('-eval_length', type=int, default=30)
+parser.add_argument('-overlap_length', type=int, default=30)
 
 parser.add_argument('-snr_start', type=float, default=30)
 parser.add_argument('-snr_stop', type=float, default=50)
@@ -52,7 +53,7 @@ def realistic_sys():
     num_sym_in_constrain = encoder_dict[1]['input'].shape[1]
     num_sym_out_constrain = encoder_dict[1]['output'].shape[1]
     rate_constrain = num_sym_in_constrain / num_sym_out_constrain
-    dummy_len = int(args.overlap_len * num_sym_in_constrain 
+    dummy_len = int(args.overlap_length * num_sym_in_constrain 
                  / num_sym_out_constrain)
     
     # class
@@ -68,7 +69,7 @@ def realistic_sys():
         taps_num = 15,
         mu = 0.01
     )
-    pr_adaptive_equalizer.equalizer_coeffs = np.loadtxt("./data/equalizer_coeffs.txt").reshape(1, -1)
+    pr_adaptive_equalizer.equalizer_coeffs = np.loadtxt("../data/equalizer_coeffs.txt").reshape(1, -1)
     print("load equalizer_coeffs from txt")
     print(f"equalizer_coeffs are {pr_adaptive_equalizer.equalizer_coeffs}")
     
@@ -93,13 +94,13 @@ def realistic_sys():
         length = equalizer_input.shape[1]
         decodeword = np.empty((1, 0))
         decodeword_pr = np.empty((1, 0))
-        for pos in range(0, length - args.overlap_len, args.truncation_len):
+        for pos in range(0, length - args.overlap_length, args.eval_length):
             
-            codeword_truncation = codeword[:, pos:pos+args.truncation_len+args.overlap_len]
-            rf_signal_truncation = rf_signal[:, pos:pos+args.truncation_len+args.overlap_len]
-            equalizer_input_truncation = equalizer_input[:, pos:pos+args.truncation_len+args.overlap_len]
-            pr_signal_truncation = pr_signal[:, pos:pos+args.truncation_len+args.overlap_len]
-            pr_signal_noise_truncation = pr_signal_noise[:, pos:pos+args.truncation_len+args.overlap_len]
+            codeword_truncation = codeword[:, pos:pos+args.eval_length+args.overlap_length]
+            rf_signal_truncation = rf_signal[:, pos:pos+args.eval_length+args.overlap_length]
+            equalizer_input_truncation = equalizer_input[:, pos:pos+args.eval_length+args.overlap_length]
+            pr_signal_truncation = pr_signal[:, pos:pos+args.eval_length+args.overlap_length]
+            pr_signal_noise_truncation = pr_signal_noise[:, pos:pos+args.eval_length+args.overlap_length]
             
             pr_adaptive_equalizer.equalizer_input = equalizer_input_truncation
             detector_input = pr_adaptive_equalizer.equalized_signal()
@@ -118,7 +119,7 @@ def realistic_sys():
             # pr_adaptive_equalizer.reference_signal = pr_signal_truncation
             # detector_input_train, error_signal, error_signal_square, equalizer_coeffs = pr_adaptive_equalizer.lms()
             
-            # Normalized_t = np.linspace(1, args.truncation_len+args.overlap_len, args.truncation_len+args.overlap_len)
+            # Normalized_t = np.linspace(1, args.eval_length+args.overlap_length, args.eval_length+args.overlap_length)
             # Xs = [
             #     Normalized_t,
             #     Normalized_t,
@@ -216,7 +217,7 @@ class Viterbi(object):
         r_len = r_truncation.shape[1]
         ini_metric_trun = ini_metric
         path_survivor = np.zeros((self.num_state, r_len))
-        state_metric_trun = np.zeros((self.num_state, args.truncation_len))
+        state_metric_trun = np.zeros((self.num_state, args.eval_length))
         
         for idx in range(r_len):
             state_path, state_metric = self.metric(r_truncation[:, idx], 
@@ -224,14 +225,14 @@ class Viterbi(object):
             
             ini_metric_trun = state_metric
             path_survivor[:, idx:idx+1] = state_path
-            if idx == args.truncation_len-1:
+            if idx == args.eval_length-1:
                 state_metric_next = state_metric
         
         state_min = np.argmin(state_metric, axis=0)[0]
         path = self.path_convert(path_survivor)
         dec_word = self.path_to_word(path, state_min)
         
-        return dec_word[:, :args.truncation_len], state_metric_next
+        return dec_word[:, :args.eval_length], state_metric_next
         
     def metric(self, r, metric_last):
         '''

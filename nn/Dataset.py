@@ -23,29 +23,26 @@ sys.path.pop()
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument('-eval_info_length', type=int, default=1000)
-
 parser.add_argument('-eval_length', type=int, default=30)
 parser.add_argument('-overlap_length', type=int, default=30)
 
-parser.add_argument('-batch_size_snr_train_1', type=int, default=30)
-parser.add_argument('-batch_size_snr_train_2', type=int, default=30)
-parser.add_argument('-batch_size_snr_validate_1', type=int, default=600)
-parser.add_argument('-batch_size_snr_validate_2', type=int, default=600)
+parser.add_argument('-batch_size_snr_train', type=int, default=300)
+parser.add_argument('-batch_size_snr_test', type=int, default=600)
+parser.add_argument('-eval_info_length', type=int, default=1000000)
 
 parser.add_argument('-snr_start', type=float, default=30)
-parser.add_argument('-snr_stop', type=float, default=40)
+parser.add_argument('-snr_stop', type=float, default=50)
 parser.add_argument('-snr_step', type=float, default=1)
 
 parser.add_argument('-input_size', type=int, default=5)
 
-parser.add_argument('-train_set_batches', type=int, default=10)
-parser.add_argument('-test_set_batches', type=int, default=2)
+parser.add_argument('-train_set_batches', type=int, default=200)
+parser.add_argument('-test_set_batches', type=int, default=100)
 parser.add_argument('-validate_set_batches', type=int, default=2)
 
 class PthDataset(Dataset):
     def __init__(self, file_path):
-        data = torch.load(file_path)
+        data = torch.load(file_path, weights_only=False)
         self.data = torch.from_numpy(data['data']).float()
         self.label = torch.from_numpy(data['label']).float()
 
@@ -74,53 +71,33 @@ class Rawdb(object):
         self.NRZI_converter = NRZI_Converter()
         self.disk_read_channel = Disk_Read_Channel()
     
-    def data_generation_train(self, prob, bt_size_snr_1, bt_size_snr_2):
+    def data_generation_train(self, prob, bt_size_snr):
         '''
         training/testing data(with sliding window) and label
         output: numpy array 
         '''
         
-        bt_size_1 = int(((args.snr_stop-args.snr_start)/
-                         args.snr_step+1)*bt_size_snr_1)
-        bt_size_2 = int(((args.snr_stop-args.snr_start)/
-                         args.snr_step+1)*bt_size_snr_2)
+        bt_size = int(((args.snr_stop-args.snr_start)/
+                         args.snr_step+1)*bt_size_snr)
         
         block_length = args.eval_length + args.overlap_length
         info_length = math.ceil(block_length/self.num_out_sym)*self.num_input_sym_enc
         
-        info_1 = np.random.choice(np.arange(0, 2), size = (bt_size_snr_1, info_length), p=[1-prob, prob])
+        info = np.random.choice(np.arange(0, 2), size = (bt_size_snr, info_length), p=[1-prob, prob])
         
-        info_2 = np.random.choice(np.arange(0, 2), size = (bt_size_snr_2, info_length), p=[1-prob, prob])
-        
-        data_1, label_1 = (np.zeros((bt_size_1, block_length)), 
-                                 np.zeros((bt_size_1, block_length)))
-        data_2, label_2 = (np.zeros((bt_size_2, block_length)), 
-                                 np.zeros((bt_size_2, block_length)))
+        data, label = (np.zeros((bt_size, block_length)), 
+                                 np.zeros((bt_size, block_length)))
                 
-        for i in range(bt_size_snr_1):
-            codeword = (self.NRZI_converter.forward_coding(self.RLL_modulator.forward_coding(info_1[i : i+1, :]))[:, :block_length])
+        for i in range(bt_size_snr):
+            codeword = (self.NRZI_converter.forward_coding(self.RLL_modulator.forward_coding(info[i : i+1, :]))[:, :block_length])
             
             for idx in np.arange(0, (args.snr_stop-args.snr_start)/args.snr_step+1):
-                label_1[int(idx*bt_size_snr_1+i) : int(idx*bt_size_snr_1+i+1), :] = codeword
+                label[int(idx*bt_size_snr+i) : int(idx*bt_size_snr+i+1), :] = codeword
                 
                 rf_signal = self.disk_read_channel.RF_signal(codeword)
                 equalizer_input = self.disk_read_channel.awgn(rf_signal, args.snr_start+idx*args.snr_step)
                 
-                data_1[int(idx*bt_size_snr_1+i) : int(idx*bt_size_snr_1+i+1), :] = equalizer_input
-        
-        for i in range(bt_size_snr_2):
-            codeword = (self.NRZI_converter.forward_coding(self.RLL_modulator.forward_coding(info_2[i : i+1, :]))[:, :block_length])
-            
-            for idx in np.arange(0, (args.snr_stop-args.snr_start)/args.snr_step+1):
-                label_2[int(idx*bt_size_snr_2+i) : int(idx*bt_size_snr_2+i+1), :] = codeword
-                
-                rf_signal = self.disk_read_channel.RF_signal(codeword)
-                equalizer_input = self.disk_read_channel.awgn(rf_signal, args.snr_start+idx*args.snr_step)
-                
-                data_2[int(idx*bt_size_snr_2+i) : int(idx*bt_size_snr_2+i+1), :] = equalizer_input
-        
-        data = np.concatenate((data_1, data_2), axis=0)
-        label = np.concatenate((label_1, label_2), axis=0)
+                data[int(idx*bt_size_snr+i) : int(idx*bt_size_snr+i+1), :] = equalizer_input
         
         data = sliding_shape(data, self.args.input_size)
         label = label
@@ -168,7 +145,7 @@ class Rawdb(object):
             random_p = np.random.normal(miu, sigma)
             random_p = min(max(random_p, 0), 1)
 
-            data_train, label_train = self.data_generation_train(random_p, args.batch_size_snr_train_1, args.batch_size_snr_train_2)
+            data_train, label_train = self.data_generation_train(random_p, args.batch_size_snr_train)
             data = np.append(data, data_train, axis=0)
             label = np.append(label, label_train, axis=0)
 
@@ -187,7 +164,7 @@ class Rawdb(object):
             random_p = np.random.normal(miu, sigma)
             random_p = min(max(random_p, 0), 1)
 
-            data_test, label_test = self.data_generation_train(random_p, args.batch_size_snr_validate_1, args.batch_size_snr_validate_2)
+            data_test, label_test = self.data_generation_train(random_p, args.batch_size_snr_test)
             data = np.append(data, data_test, axis=0)
             label = np.append(label, label_test, axis=0)
 
@@ -230,4 +207,4 @@ if __name__ == '__main__':
 
     rawdb = Rawdb(args, encoder_dict, encoder_definite, channel_dict)
 
-    rawdb.build_rawdb("./data")
+    rawdb.build_rawdb("../data")

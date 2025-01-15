@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import torch
 
 def plot_altogether(X, Ys, title, xlabel, ylabel, xtick_interval=None, ytick_interval=None):
     for Y in Ys:
@@ -91,3 +92,14 @@ def sliding_shape(x, input_size):
             y[bt, time, :] = x[bt, time:time+input_size]
     
     return y.astype(np.float32)
+
+def evaluation(eval_length, data_eval, model, device):
+    dec = torch.zeros((1, 0)).float().to(device)
+    for idx in range(data_eval.shape[0]):
+        truncation_in = data_eval[idx:idx + 1, : , :]
+        with torch.no_grad():
+            dec_block = codeword_threshold(model(truncation_in)[:, :eval_length])
+        # concatenate the decoding codeword
+        dec = torch.cat((dec, dec_block), 1)
+        
+    return dec.cpu().numpy()

@@ -14,7 +14,7 @@ sys.path.append(
     os.path.dirname(
         os.path.dirname(
             os.path.abspath(__file__))))
-from lib.Utils import codeword_threshold
+from lib.Utils import evaluation
 from Dataset import PthDataset
 sys.path.pop()
 
@@ -22,14 +22,15 @@ parser = argparse.ArgumentParser()
 
 parser.add_argument('-learning_rate', type = float, default=0.001)
 parser.add_argument('-momentum', type=float, default=0.9)
-parser.add_argument('-num_epoch', type=int, default=10)
-parser.add_argument('-epoch_start', type=int, default=0)
 parser.add_argument('-weight_decay', type=float, default=0.0001)
-parser.add_argument('-eval_freq', type=int, default=1)
-parser.add_argument('-eval_start', type=int, default=0)
+
+parser.add_argument('-num_epoch', type=int, default=400)
+parser.add_argument('-epoch_start', type=int, default=0)
+parser.add_argument('-eval_freq', type=int, default=5)
+parser.add_argument('-eval_start', type=int, default=200)
 parser.add_argument('-print_freq_ep', type=int, default=5)
 
-parser.add_argument('-model_dir', default="./model/", type=str, metavar='PATH', help='path to latest model')
+parser.add_argument('-model_dir', default="../model/", type=str, metavar='PATH', help='path to latest model')
 parser.add_argument('-result', type=str, default='result.txt')
 parser.add_argument('-model_name', type=str, default='model.pth.tar')
 
@@ -52,21 +53,21 @@ def main():
     global args
     args = parser.parse_known_args()[0]
 
-    # data loader
-    train_dataset = PthDataset(file_path='./data/train_set.pth')
-    test_dataset = PthDataset(file_path='./data/test_set.pth')
-    val_dataset = PthDataset(file_path='./data/validate_set.pth')
-
-    train_loader = DataLoader(train_dataset, batch_size=args.batch_size_train, shuffle=True, num_workers=4)
-    test_loader = DataLoader(test_dataset, batch_size=args.batch_size_test, shuffle=False, num_workers=4)
-    val_loader = DataLoader(val_dataset, batch_size=args.batch_size_val, shuffle=False, num_workers=4)
-    
     # device
     os.environ['CUDA_VISIBLE_DEVICES'] = "0"
     if torch.cuda.is_available():
         device = torch.device("cuda")
     else:
         device = torch.device("cpu")
+        
+    # data loader
+    train_dataset = PthDataset(file_path='../data/train_set.pth')
+    test_dataset = PthDataset(file_path='../data/test_set.pth')
+    val_dataset = PthDataset(file_path='../data/validate_set.pth')
+
+    train_loader = DataLoader(train_dataset, batch_size=args.batch_size_train, shuffle=True, num_workers=4)
+    test_loader = DataLoader(test_dataset, batch_size=args.batch_size_test, shuffle=False, num_workers=4)
+    val_loader = DataLoader(val_dataset, batch_size=args.batch_size_val, shuffle=False, num_workers=4)
 
     # model
     model = RNN(args, device).to(device)
@@ -83,7 +84,7 @@ def main():
     model_path = f"{args.model_dir}/{args.model_name}"
 
     # output dir 
-    dir_name = './output/output_' + datetime.datetime.strftime(datetime.datetime.now(), '%Y_%m_%d_%H_%M_%S') + '/'
+    dir_name = '../output/output_' + datetime.datetime.strftime(datetime.datetime.now(), '%Y_%m_%d_%H_%M_%S') + '/'
     if not os.path.exists(dir_name):
         os.makedirs(dir_name)
     result_path = dir_name + args.result
@@ -115,7 +116,6 @@ def main():
 class RNN(nn.Module):
     def __init__(self, args, device):
         super(RNN, self).__init__()
-        
         self.args = args
         self.device = device
         self.time_step = (args.eval_length + args.overlap_length)
@@ -152,10 +152,11 @@ def train(train_loader, model, optimizer, epoch, device):
     train_loss = 0
     bt_cnt = 0
     for datas, labels in train_loader:
+        datas, labels = datas.to(device), labels.to(device)
         # network
         optimizer.zero_grad()
         output = model(datas)
-        loss = loss_func(output, labels)
+        loss = loss_func(output, labels, device)
 
         # compute gradient and do gradient step
         loss.backward()
@@ -180,8 +181,9 @@ def validate(test_loader, val_loader, model, epoch, device):
         test_loss = 0
         bt_cnt = 0
         for datas, labels in test_loader:
+            datas, labels = datas.to(device), labels.to(device)
             output = model(datas)
-            loss = loss_func(output, labels)
+            loss = loss_func(output, labels, device)
             test_loss += loss.item()
             bt_cnt += 1
         avg_loss = test_loss / bt_cnt
@@ -195,28 +197,18 @@ def validate(test_loader, val_loader, model, epoch, device):
         decodeword = np.empty((1, 0))
         label_val = np.empty((1, 0))
         for datas, labels in val_loader:
-            dec = evaluation(datas, model, device)
+            datas = datas.to(device)
+            dec = evaluation(args.eval_length, datas, model, device)
             decodeword = np.append(decodeword, dec, axis=1)
-            labels = labels.reshape(1, -1)
+            labels = labels.numpy().reshape(1, -1)
             label_val = np.append(label_val, labels, axis=1)
         ber = (np.sum(np.abs(decodeword - label_val))/label_val.shape[1])
         print('Validation Epoch: {} - ber: {}'.format(epoch+1, ber))
     
     return avg_loss, ber
-        
-def evaluation(data_eval, model, device):
-    dec = torch.zeros((1, 0)).float().to(device)
-    for idx in range(data_eval.shape[0]):
-        truncation_in = data_eval[idx:idx + 1, : , :]
-        with torch.no_grad():
-            dec_block = codeword_threshold(model(truncation_in)[:, :args.eval_length])
-        # concatenate the decoding codeword
-        dec = torch.cat((dec, dec_block), 1)
-        
-    return dec.cpu().numpy()
 
-def loss_func(output, label):
-    return F.binary_cross_entropy(output, label).cpu()
+def loss_func(output, label, device):
+    return F.binary_cross_entropy(output, label).to(device)
         
 if __name__ == '__main__':
     main()

@@ -11,7 +11,7 @@ sys.path.append(
         os.path.dirname(
             os.path.abspath(__file__))))
 from lib.Const import RLL_state_machine, Target_channel_state_machine, Target_channel_dummy_bits
-from lib.Utils import sliding_shape, codeword_threshold
+from lib.Utils import sliding_shape, evaluation
 from lib.Channel_Modulator import RLL_Modulator
 from lib.Channel_Converter import NRZI_Converter
 from lib.Disk_Read_Channel import Disk_Read_Channel
@@ -24,7 +24,7 @@ np.random.seed(12345)
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument('-info_len', type=int, default=1000)
+parser.add_argument('-info_len', type=int, default=1000000)
 
 parser.add_argument('-snr_start', type=float, default=30)
 parser.add_argument('-snr_stop', type=float, default=50)
@@ -40,7 +40,7 @@ parser.add_argument('-output_size', type=int, default=1)
 parser.add_argument('-rnn_layer', type=int, default=4)
 parser.add_argument('-rnn_dropout_ratio', type=float, default=0)
 
-parser.add_argument('-model_file', default="./model/model.pth.tar", type=str, metavar='PATH', help='path to latest model')
+parser.add_argument('-model_file', default="../model/model.pth.tar", type=str, metavar='PATH', help='path to latest model')
 
 global args
 args = parser.parse_args()
@@ -77,7 +77,7 @@ def rnn_sys():
     if args.model_file:
         if os.path.isfile(args.model_file):
             print("=> loading checkpoint '{}'".format(args.model_file))
-            checkpoint = torch.load(args.model_file)
+            checkpoint = torch.load(args.model_file, weights_only=False)
             model.load_state_dict(checkpoint['state_dict'])
         else:
             print("=> no checkpoint found at '{}'".format(args.model_file))
@@ -103,7 +103,8 @@ def rnn_sys():
         for pos in range(0, length - args.overlap_length, args.eval_length):
             equalizer_input_truncation = equalizer_input[:, pos:pos+args.eval_length+args.overlap_length]
             truncation_input = sliding_shape(equalizer_input_truncation, args.input_size)
-            dec_tmp = evaluation(truncation_input, model, device)
+            truncation_input = torch.from_numpy(truncation_input).float().to(device)
+            dec_tmp = evaluation(args.eval_length, truncation_input, model, device)
             decodeword = np.append(decodeword, dec_tmp, axis=1)
 
         print("The SNR is:")
@@ -111,19 +112,6 @@ def rnn_sys():
         ber = (np.count_nonzero(np.abs(codeword[:, 0:codeword_len] - decodeword[:, 0:codeword_len])) / codeword_len)
         print("The bit error rate (BER) use RNN is:")
         print(ber)
-
-def evaluation(data_eval, model, device):
-    model.eval()
-    dec = torch.zeros((1, 0)).float().to(device)
-    data_eval = torch.from_numpy(data_eval).float().to(device)
-    for idx in range(data_eval.shape[0]):
-        truncation_in = data_eval[idx:idx + 1, : , :]
-        with torch.no_grad():
-            dec_block = codeword_threshold(model(truncation_in)[:, :args.eval_length])
-        # concatenate the decoding codeword
-        dec = torch.cat((dec, dec_block), 1)
-        
-    return dec.cpu().numpy()
 
 if __name__ == '__main__':
     rnn_sys()
