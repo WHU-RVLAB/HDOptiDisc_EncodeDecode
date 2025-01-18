@@ -41,7 +41,7 @@ parser.add_argument('-input_size', type=int, default=5)
 parser.add_argument('-rnn_input_size', type=int, default=5)
 parser.add_argument('-rnn_hidden_size', type=int, default=50)
 parser.add_argument('-output_size', type=int, default=1)
-parser.add_argument('-rnn_layer', type=int, default=4)
+parser.add_argument('-rnn_layer', type=int, default=10)
 parser.add_argument('-rnn_dropout_ratio', type=float, default=0)
 
 parser.add_argument('-batch_size_train', type=int, default=300)

@@ -26,9 +26,9 @@ parser = argparse.ArgumentParser()
 
 parser.add_argument('-info_len', type=int, default=1000000)
 
-parser.add_argument('-snr_start', type=float, default=30)
-parser.add_argument('-snr_stop', type=float, default=50)
-parser.add_argument('-snr_step', type=float, default=1)
+parser.add_argument('-snr_start', type=float, default=40)
+parser.add_argument('-snr_stop', type=float, default=60)
+parser.add_argument('-snr_step', type=float, default=10)
 
 parser.add_argument('-eval_length', type=int, default=30)
 parser.add_argument('-overlap_length', type=int, default=30)
@@ -37,7 +37,7 @@ parser.add_argument('-input_size', type=int, default=5)
 parser.add_argument('-rnn_input_size', type=int, default=5)
 parser.add_argument('-rnn_hidden_size', type=int, default=50)
 parser.add_argument('-output_size', type=int, default=1)
-parser.add_argument('-rnn_layer', type=int, default=4)
+parser.add_argument('-rnn_layer', type=int, default=10)
 parser.add_argument('-rnn_dropout_ratio', type=float, default=0)
 
 parser.add_argument('-model_file', default="../model/model.pth.tar", type=str, metavar='PATH', help='path to latest model')

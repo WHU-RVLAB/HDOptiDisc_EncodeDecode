@@ -28,7 +28,7 @@ parser.add_argument('-overlap_length', type=int, default=30)
 
 parser.add_argument('-batch_size_snr_train', type=int, default=300)
 parser.add_argument('-batch_size_snr_test', type=int, default=600)
-parser.add_argument('-eval_info_length', type=int, default=1000000)
+parser.add_argument('-eval_info_length', type=int, default=600)
 
 parser.add_argument('-snr_start', type=float, default=30)
 parser.add_argument('-snr_stop', type=float, default=50)
@@ -36,9 +36,9 @@ parser.add_argument('-snr_step', type=float, default=1)
 
 parser.add_argument('-input_size', type=int, default=5)
 
-parser.add_argument('-train_set_batches', type=int, default=200)
-parser.add_argument('-test_set_batches', type=int, default=100)
-parser.add_argument('-validate_set_batches', type=int, default=2)
+parser.add_argument('-train_set_batches', type=int, default=100)
+parser.add_argument('-test_set_batches', type=int, default=50)
+parser.add_argument('-validate_set_batches', type=int, default=10000)
 
 class PthDataset(Dataset):
     def __init__(self, file_path):
