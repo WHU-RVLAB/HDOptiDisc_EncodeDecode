@@ -9,21 +9,17 @@ from Channel_Modulator import RLL_Modulator
 from Channel_Converter import NRZI_Converter
 from Disk_Response import BD_symbol_response
 from Utils import plot_separated
+from Params import Params
 sys.path.pop()
 import pdb
-
-info_len = 80
-tap_bd_num = 6
-snr_start =20
-snr_stop =60
-snr_step =10
     
 class Disk_Read_Channel(object):
     
-    def __init__(self):
+    def __init__(self, params:Params):
+        self.params = params
         _, bd_di_coef = BD_symbol_response(bit_periods = 10)
         mid_idx = len(bd_di_coef)//2
-        self.bd_di_coef = bd_di_coef[mid_idx : mid_idx + tap_bd_num].reshape(1,-1)
+        self.bd_di_coef = bd_di_coef[mid_idx : mid_idx + self.params.tap_bd_num].reshape(1,-1)
         self.len_dummy = self.bd_di_coef.shape[1]
         
         print('The dipulse bd coefficient is\n')
@@ -37,7 +33,7 @@ class Disk_Read_Channel(object):
         length = codeword.shape[1] - self.len_dummy
         codeword = np.pad(codeword[:,:length], ((0, 0), (0, self.len_dummy)), mode='constant')
         rf_signal = (np.convolve(self.bd_di_coef[0, :], codeword[0, :])
-               [:-(tap_bd_num - 1)].reshape(codeword.shape))
+               [:-(self.params.tap_bd_num - 1)].reshape(codeword.shape))
         
         return rf_signal
     
@@ -49,20 +45,21 @@ class Disk_Read_Channel(object):
 if __name__ == '__main__':
     
     # constant and input paras
+    params = Params()
     encoder_dict, encoder_definite = RLL_state_machine()
     RLL_modulator = RLL_Modulator(encoder_dict, encoder_definite)
     NRZI_converter = NRZI_Converter()
-    disk_read_channel = Disk_Read_Channel()
+    disk_read_channel = Disk_Read_Channel(params)
     
-    num_ber = int((snr_stop-snr_start)/snr_step+1)
+    num_ber = int((params.snr_stop-params.snr_start)/params.snr_step+1)
     
     code_rate = 2/3
-    Normalized_t = np.linspace(1, int(info_len/code_rate), int(info_len/code_rate))
+    Normalized_t = np.linspace(1, int(params.real_eval_len/code_rate), int(params.real_eval_len/code_rate))
     
     for idx in np.arange(0, num_ber):
-        snr = snr_start+idx*snr_step
+        snr = params.snr_start+idx*params.snr_step
         
-        info = np.random.randint(2, size = (1, info_len))
+        info = np.random.randint(2, size = (1, params.real_eval_len))
         codeword = NRZI_converter.forward_coding(RLL_modulator.forward_coding(info))
         rf_signal = disk_read_channel.RF_signal(codeword)
         equalizer_input = disk_read_channel.awgn(rf_signal, snr)

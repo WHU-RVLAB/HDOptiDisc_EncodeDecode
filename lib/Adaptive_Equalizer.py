@@ -10,15 +10,8 @@ from Channel_Converter import NRZI_Converter
 from Disk_Read_Channel import Disk_Read_Channel
 from Target_PR_Channel import Target_PR_Channel
 from Utils import plot_separated
+from Params import Params
 sys.path.pop()
-
-import pdb
-
-info_len = 100
-equalizer_train_len = 1000000
-truncation_len =30
-overlap_len =30
-snr = 40
 
 class Adaptive_Equalizer(object):
     
@@ -62,19 +55,11 @@ class Adaptive_Equalizer(object):
                [:-(self.taps_num-1)].reshape(self.equalizer_input.shape))
             
         return equalizer_output
-    
-    def save_equalizer_coeffs(self):
-        self.equalizer_coeffs_dir = "../data"
-        if not os.path.exists(self.equalizer_coeffs_dir):
-            os.makedirs(self.equalizer_coeffs_dir)
-        file_path = f"{self.equalizer_coeffs_dir}/equalizer_coeffs.txt"
-        np.savetxt(file_path, self.equalizer_coeffs)
-        print(f"save equalizer_coeffs to txt files:{file_path}")
-        print(f"equalizer_coeffs are {self.equalizer_coeffs}")
 
 if __name__ == '__main__':  
 
     # constant and input paras
+    params = Params()
     encoder_dict, encoder_definite = RLL_state_machine()
     channel_dict = Target_channel_state_machine()
     dummy_start_paths, dummy_start_input, dummy_start_output, dummy_start_eval, \
@@ -84,24 +69,24 @@ if __name__ == '__main__':
     num_sym_in_constrain = encoder_dict[1]['input'].shape[1]
     num_sym_out_constrain = encoder_dict[1]['output'].shape[1]
     rate_constrain = num_sym_in_constrain / num_sym_out_constrain
-    dummy_len = int(overlap_len * num_sym_in_constrain 
+    dummy_len = int(params.overlap_length * num_sym_in_constrain 
                  / num_sym_out_constrain)
-    codeword_len = int(equalizer_train_len/rate_constrain)
+    codeword_len = int(params.equalizer_train_len/rate_constrain)
     
     # class
     RLL_modulator = RLL_Modulator(encoder_dict, encoder_definite)
     NRZI_converter = NRZI_Converter()
-    disk_read_channel = Disk_Read_Channel()
+    disk_read_channel = Disk_Read_Channel(params)
     target_pr_channel = Target_PR_Channel(channel_dict, dummy_end_paths, channel_dict['ini_state'])
     
     code_rate = 2/3
-    Normalized_t = np.linspace(1, int((equalizer_train_len+dummy_len)/code_rate), int((equalizer_train_len+dummy_len)/code_rate))
+    Normalized_t = np.linspace(1, int((params.equalizer_train_len+dummy_len)/code_rate), int((params.equalizer_train_len+dummy_len)/code_rate))
         
-    train_bits = np.random.randint(2, size = (1, equalizer_train_len+dummy_len))
+    train_bits = np.random.randint(2, size = (1, params.equalizer_train_len+dummy_len))
     codeword = NRZI_converter.forward_coding(RLL_modulator.forward_coding(train_bits))
     
     rf_signal = disk_read_channel.RF_signal(codeword)
-    equalizer_input = disk_read_channel.awgn(rf_signal, snr)
+    equalizer_input = disk_read_channel.awgn(rf_signal, params.snr_eval)
     
     pr_signal = target_pr_channel.target_channel(codeword)
     
@@ -122,13 +107,13 @@ if __name__ == '__main__':
     Ys = [
         {'data': codeword.reshape(-1), 'label': 'binary Sequence'}, 
         {'data': rf_signal.reshape(-1), 'label': 'rf_signal', 'color': 'red'},
-        {'data': equalizer_input.reshape(-1), 'label': f'equalizer_input_snr{snr}', 'color': 'red'},
+        {'data': equalizer_input.reshape(-1), 'label': f'equalizer_input_snr{params.snr_eval}', 'color': 'red'},
         {'data': pr_signal.reshape(-1), 'label': 'pr_signal', 'color': 'red'},
     ]
     titles = [
         'Binary Sequence',
         'rf_signal',
-        f'equalizer_input_snr{snr}',
+        f'equalizer_input_snr{params.snr_eval}',
         'pr_signal',
     ]
     xlabels = ["Time (t/T)"]
@@ -178,23 +163,29 @@ if __name__ == '__main__':
         xlabels=xlabels, 
         ylabels=ylabels
     )
-    pr_adaptive_equalizer.save_equalizer_coeffs()
+    
+    # save equalizer_coeffs to txt
+    if not os.path.exists(params.equalizer_coeffs_dir):
+        os.makedirs(params.equalizer_coeffs_dir)
+    np.savetxt(params.equalizer_coeffs_file, pr_adaptive_equalizer.equalizer_coeffs)
+    print(f"save equalizer_coeffs to txt files:{params.equalizer_coeffs_file}")
+    print(f"equalizer_coeffs are {pr_adaptive_equalizer.equalizer_coeffs}")
 
     # validate  
-    info = np.random.randint(2, size = (1, info_len+dummy_len))
+    info = np.random.randint(2, size = (1, params.real_eval_len+dummy_len))
     codeword = NRZI_converter.forward_coding(RLL_modulator.forward_coding(info))
     
     rf_signal = disk_read_channel.RF_signal(codeword)
-    equalizer_input = disk_read_channel.awgn(rf_signal, snr)
+    equalizer_input = disk_read_channel.awgn(rf_signal, params.snr_eval)
     pr_signal = target_pr_channel.target_channel(codeword)
     
     length = equalizer_input.shape[1]
-    for pos in range(0, length - overlap_len, truncation_len):
+    for pos in range(0, length - params.overlap_length, params.eval_length):
         
-        codeword_truncation = codeword[:, pos:pos+truncation_len+overlap_len]
-        rf_signal_truncation = rf_signal[:, pos:pos+truncation_len+overlap_len]
-        equalizer_input_truncation = equalizer_input[:, pos:pos+truncation_len+overlap_len]
-        pr_signal_truncation = pr_signal[:, pos:pos+truncation_len+overlap_len]
+        codeword_truncation = codeword[:, pos:pos+params.eval_length+params.overlap_length]
+        rf_signal_truncation = rf_signal[:, pos:pos+params.eval_length+params.overlap_length]
+        equalizer_input_truncation = equalizer_input[:, pos:pos+params.eval_length+params.overlap_length]
+        pr_signal_truncation = pr_signal[:, pos:pos+params.eval_length+params.overlap_length]
         
         pr_adaptive_equalizer.equalizer_input = equalizer_input_truncation
         detector_input = pr_adaptive_equalizer.equalized_signal()
@@ -203,7 +194,7 @@ if __name__ == '__main__':
         # pr_adaptive_equalizer.reference_signal = pr_signal_truncation
         # detector_input_train, error_signal, error_signal_square, equalizer_coeffs = pr_adaptive_equalizer.lms()
         
-        Normalized_t = np.linspace(1, truncation_len+overlap_len, truncation_len+overlap_len)
+        Normalized_t = np.linspace(1, params.eval_length+params.overlap_length, params.eval_length+params.overlap_length)
         Xs = [
             Normalized_t,
             Normalized_t,

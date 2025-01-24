@@ -6,9 +6,8 @@ sys.path.append(
         os.path.abspath(__file__)))
 from Utils import find_index
 from Const import RLL_state_machine
+from Params import Params
 sys.path.pop()
-
-info_len = 100
 
 ## RLL_Modulator: constrained RLL(1,7) encoder
 class RLL_Modulator(object):
@@ -50,10 +49,11 @@ class RLL_Modulator(object):
 if __name__ == '__main__':
     
     # constant and input paras
+    params = Params()
     encoder_dict, encoder_definite = RLL_state_machine()
     RLL_modulator = RLL_Modulator(encoder_dict, encoder_definite)
         
-    info = np.random.randint(2, size = (1, info_len))
+    info = np.random.randint(2, size = (1, params.real_eval_len))
     codeword = RLL_modulator.forward_coding(info)
     
     print("\ninfo: ", info)

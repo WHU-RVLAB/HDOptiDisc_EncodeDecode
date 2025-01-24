@@ -8,10 +8,9 @@ from Const import RLL_state_machine, Target_channel_state_machine, Target_channe
 from Channel_Modulator import RLL_Modulator
 from Channel_Converter import NRZI_Converter
 from Utils import plot_separated
+from Params import Params
 sys.path.pop()
 import pdb
-
-info_len = 80
     
 class Target_PR_Channel(object):
     
@@ -61,6 +60,7 @@ class Target_PR_Channel(object):
 if __name__ == '__main__':
     
     # constant and input paras
+    params = Params()
     encoder_dict, encoder_definite = RLL_state_machine()
     channel_dict = Target_channel_state_machine()
     dummy_start_paths, dummy_start_input, dummy_start_output, dummy_start_eval, \
@@ -71,9 +71,9 @@ if __name__ == '__main__':
     target_pr_channel = Target_PR_Channel(channel_dict, dummy_end_paths, channel_dict['ini_state'])
     
     code_rate = 2/3
-    Normalized_t = np.linspace(1, int(info_len/code_rate), int(info_len/code_rate))
+    Normalized_t = np.linspace(1, int(params.real_eval_len/code_rate), int(params.real_eval_len/code_rate))
         
-    info = np.random.randint(2, size = (1, info_len))
+    info = np.random.randint(2, size = (1, params.real_eval_len))
     codeword = NRZI_converter.forward_coding(RLL_modulator.forward_coding(info))
     pr_signal = target_pr_channel.target_channel(codeword)
     

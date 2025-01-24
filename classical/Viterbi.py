@@ -1,8 +1,6 @@
-import argparse
 import numpy as np
 import sys
 import os
-sys.path.append("..")
 np.set_printoptions(threshold=sys.maxsize)
 
 sys.path.append(
@@ -10,6 +8,7 @@ sys.path.append(
         os.path.dirname(
             os.path.abspath(__file__))))
 from lib.Const import RLL_state_machine, Target_channel_state_machine, Target_channel_dummy_bits
+from lib.Params import Params
 from lib.Channel_Modulator import RLL_Modulator
 from lib.Channel_Converter import NRZI_Converter
 from lib.Disk_Read_Channel import Disk_Read_Channel
@@ -18,25 +17,9 @@ from lib.Adaptive_Equalizer import Adaptive_Equalizer
 from lib.Utils import plot_separated, find_index
 sys.path.pop()
 
-import pdb
-
 np.random.seed(12345)
 
-parser = argparse.ArgumentParser()
-
-parser.add_argument('-info_len', type=int, default=1000000)
-
-parser.add_argument('-eval_length', type=int, default=30)
-parser.add_argument('-overlap_length', type=int, default=30)
-
-parser.add_argument('-snr_start', type=float, default=30)
-parser.add_argument('-snr_stop', type=float, default=50)
-parser.add_argument('-snr_step', type=float, default=1)
-
-global args
-args = parser.parse_args()
-
-def realistic_sys():
+def realistic_sys(params:Params):
     
     # constant and input paras
     encoder_dict, encoder_definite = RLL_state_machine()
@@ -53,15 +36,15 @@ def realistic_sys():
     num_sym_in_constrain = encoder_dict[1]['input'].shape[1]
     num_sym_out_constrain = encoder_dict[1]['output'].shape[1]
     rate_constrain = num_sym_in_constrain / num_sym_out_constrain
-    dummy_len = int(args.overlap_length * num_sym_in_constrain 
+    dummy_len = int(params.overlap_length * num_sym_in_constrain 
                  / num_sym_out_constrain)
     
     # class
     RLL_modulator = RLL_Modulator(encoder_dict, encoder_definite)
     NRZI_converter = NRZI_Converter()
-    disk_read_channel = Disk_Read_Channel()
+    disk_read_channel = Disk_Read_Channel(params)
     target_pr_channel = Target_PR_Channel(channel_dict, dummy_end_paths, channel_dict['ini_state'])
-    viterbi_decoder = Viterbi(channel_dict, ini_metric)
+    viterbi_detector = Viterbi(params, channel_dict, ini_metric)
     
     pr_adaptive_equalizer = Adaptive_Equalizer(        
         equalizer_input  = None,
@@ -69,21 +52,21 @@ def realistic_sys():
         taps_num = 15,
         mu = 0.01
     )
-    pr_adaptive_equalizer.equalizer_coeffs = np.loadtxt("../data/equalizer_coeffs.txt").reshape(1, -1)
-    print("load equalizer_coeffs from txt")
+    pr_adaptive_equalizer.equalizer_coeffs = np.loadtxt(params.equalizer_coeffs_file).reshape(1, -1)
+    print(f"load equalizer_coeffs from txt files:{params.equalizer_coeffs_file}")
     print(f"equalizer_coeffs are {pr_adaptive_equalizer.equalizer_coeffs}")
     
     # define ber
-    num_ber = int((args.snr_stop-args.snr_start)/args.snr_step+1)
-    codeword_len = int(args.info_len+dummy_len)
+    num_ber = int((params.snr_stop-params.snr_start)/params.snr_step+1)
+    codeword_len = int(params.real_test_len+dummy_len)
     ber_channel = np.zeros((1, num_ber))
     ber_info = np.zeros((1, num_ber))
     
     # eval mode
     for idx in np.arange(0, num_ber):
-        snr = args.snr_start+idx*args.snr_step
+        snr = params.snr_start+idx*params.snr_step
         
-        info = np.random.randint(2, size = (1, args.info_len+dummy_len))
+        info = np.random.randint(2, size = (1, params.real_test_len+dummy_len))
         codeword = NRZI_converter.forward_coding(RLL_modulator.forward_coding(info))
         
         rf_signal = disk_read_channel.RF_signal(codeword)
@@ -92,26 +75,26 @@ def realistic_sys():
         pr_signal_noise = target_pr_channel.awgn(pr_signal, snr)
         
         length = equalizer_input.shape[1]
-        decodeword = np.empty((1, 0))
-        decodeword_pr = np.empty((1, 0))
-        for pos in range(0, length - args.overlap_length, args.eval_length):
+        detectword = np.empty((1, 0))
+        detectword_pr = np.empty((1, 0))
+        for pos in range(0, length - params.overlap_length, params.eval_length):
             
-            codeword_truncation = codeword[:, pos:pos+args.eval_length+args.overlap_length]
-            rf_signal_truncation = rf_signal[:, pos:pos+args.eval_length+args.overlap_length]
-            equalizer_input_truncation = equalizer_input[:, pos:pos+args.eval_length+args.overlap_length]
-            pr_signal_truncation = pr_signal[:, pos:pos+args.eval_length+args.overlap_length]
-            pr_signal_noise_truncation = pr_signal_noise[:, pos:pos+args.eval_length+args.overlap_length]
+            codeword_truncation = codeword[:, pos:pos+params.eval_length+params.overlap_length]
+            rf_signal_truncation = rf_signal[:, pos:pos+params.eval_length+params.overlap_length]
+            equalizer_input_truncation = equalizer_input[:, pos:pos+params.eval_length+params.overlap_length]
+            pr_signal_truncation = pr_signal[:, pos:pos+params.eval_length+params.overlap_length]
+            pr_signal_noise_truncation = pr_signal_noise[:, pos:pos+params.eval_length+params.overlap_length]
             
             pr_adaptive_equalizer.equalizer_input = equalizer_input_truncation
             detector_input = pr_adaptive_equalizer.equalized_signal()
             
-            dec_tmp, metric_next = viterbi_decoder.vit_dec(detector_input, ini_metric)
+            dec_tmp, metric_next = viterbi_detector.vit_dec(detector_input, ini_metric)
             ini_metric = metric_next
-            decodeword = np.append(decodeword, dec_tmp, axis=1)
+            detectword = np.append(detectword, dec_tmp, axis=1)
             
-            dec_tmp_pr, metric_next_pr = viterbi_decoder.vit_dec(pr_signal_noise_truncation, ini_metric_pr)
+            dec_tmp_pr, metric_next_pr = viterbi_detector.vit_dec(pr_signal_noise_truncation, ini_metric_pr)
             ini_metric_pr = metric_next_pr
-            decodeword_pr = np.append(decodeword_pr, dec_tmp_pr, axis=1)
+            detectword_pr = np.append(detectword_pr, dec_tmp_pr, axis=1)
             
             # # eval mode 
             # # Guarantees that the equalizer can track changes in channel characteristics
@@ -119,7 +102,7 @@ def realistic_sys():
             # pr_adaptive_equalizer.reference_signal = pr_signal_truncation
             # detector_input_train, error_signal, error_signal_square, equalizer_coeffs = pr_adaptive_equalizer.lms()
             
-            # Normalized_t = np.linspace(1, args.eval_length+args.overlap_length, args.eval_length+args.overlap_length)
+            # Normalized_t = np.linspace(1, params.eval_length+params.overlap_length, params.eval_length+params.overlap_length)
             # Xs = [
             #     Normalized_t,
             #     Normalized_t,
@@ -196,18 +179,19 @@ def realistic_sys():
         
         print("The SNR is:")
         print(snr)
-        ber = (np.count_nonzero(np.abs(codeword[:, 0:codeword_len] - decodeword[:, 0:codeword_len])) 
+        ber = (np.count_nonzero(np.abs(codeword[:, 0:codeword_len] - detectword[:, 0:codeword_len])) 
                / codeword_len)
         print("The bit error rate (BER) is:")
         print(ber)
-        ber_pr = (np.count_nonzero(np.abs(codeword[:, 0:codeword_len] - decodeword_pr[:, 0:codeword_len])) 
+        ber_pr = (np.count_nonzero(np.abs(codeword[:, 0:codeword_len] - detectword_pr[:, 0:codeword_len])) 
                / codeword_len)
         print("The bit error rate (BER) in Target PR channel is:")
         print(ber_pr)
 
-## Decoder: Viterbi decoder
+## Detector: Viterbi detector
 class Viterbi(object):
-    def __init__(self, channel_dict, ini_metric):
+    def __init__(self, params:Params, channel_dict, ini_metric):
+        self.params = params
         self.channel_dict = channel_dict
         self.ini_metric = ini_metric
         self.num_state = self.channel_dict['num_state']
@@ -217,7 +201,7 @@ class Viterbi(object):
         r_len = r_truncation.shape[1]
         ini_metric_trun = ini_metric
         path_survivor = np.zeros((self.num_state, r_len))
-        state_metric_trun = np.zeros((self.num_state, args.eval_length))
+        state_metric_trun = np.zeros((self.num_state, self.params.eval_length))
         
         for idx in range(r_len):
             state_path, state_metric = self.metric(r_truncation[:, idx], 
@@ -225,14 +209,14 @@ class Viterbi(object):
             
             ini_metric_trun = state_metric
             path_survivor[:, idx:idx+1] = state_path
-            if idx == args.eval_length-1:
+            if idx == self.params.eval_length-1:
                 state_metric_next = state_metric
         
         state_min = np.argmin(state_metric, axis=0)[0]
         path = self.path_convert(path_survivor)
         dec_word = self.path_to_word(path, state_min)
         
-        return dec_word[:, :args.eval_length], state_metric_next
+        return dec_word[:, :self.params.eval_length], state_metric_next
         
     def metric(self, r, metric_last):
         '''
@@ -261,7 +245,7 @@ class Viterbi(object):
         '''
         Input: (num_state, length) array
         Output: (num_state, length) array
-        Mapping: Viterbi decoder for a truncation part
+        Mapping: Viterbi detector for a truncation part
         '''
         
         path_truncation = np.zeros(path_survivor.shape)
@@ -294,4 +278,5 @@ class Viterbi(object):
         return np.sum((x - y) ** 2)
 
 if __name__ == '__main__':
-    realistic_sys()
+    params = Params()
+    realistic_sys(params)

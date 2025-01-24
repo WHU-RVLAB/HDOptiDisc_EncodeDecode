@@ -6,9 +6,8 @@ sys.path.append(
         os.path.abspath(__file__)))
 from Const import RLL_state_machine
 from Channel_Modulator import RLL_Modulator
+from Params import Params
 sys.path.pop()
-
-info_len = 100
 
 class NRZI_Converter(object):
     
@@ -48,11 +47,12 @@ class NRZI_Converter(object):
 if __name__ == '__main__':
     
     # constant and input paras
+    params = Params()
     encoder_dict, encoder_definite = RLL_state_machine()
     RLL_modulator = RLL_Modulator(encoder_dict, encoder_definite)
     NRZI_converter = NRZI_Converter()
         
-    info = np.random.randint(2, size = (1, info_len))
+    info = np.random.randint(2, size = (1, params.real_eval_len))
     RLL_codeword = RLL_modulator.forward_coding(info)
     NRZI_codeword = NRZI_converter.forward_coding(RLL_codeword)
     
