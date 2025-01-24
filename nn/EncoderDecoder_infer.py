@@ -1,9 +1,7 @@
-import argparse
 import numpy as np
 import torch
 import sys
 import os
-sys.path.append("..")
 np.set_printoptions(threshold=sys.maxsize)
 
 sys.path.append(
@@ -16,36 +14,15 @@ from lib.Channel_Modulator import RLL_Modulator
 from lib.Channel_Converter import NRZI_Converter
 from lib.Disk_Read_Channel import Disk_Read_Channel
 from lib.Target_PR_Channel import Target_PR_Channel
+from lib.Params import Params
+from RNN import RNN
 sys.path.pop()
-
-from Rnn_train import RNN
 
 np.random.seed(12345)
 
-parser = argparse.ArgumentParser()
-
-parser.add_argument('-info_len', type=int, default=1000000)
-
-parser.add_argument('-snr_start', type=float, default=40)
-parser.add_argument('-snr_stop', type=float, default=60)
-parser.add_argument('-snr_step', type=float, default=10)
-
-parser.add_argument('-eval_length', type=int, default=30)
-parser.add_argument('-overlap_length', type=int, default=30)
-
-parser.add_argument('-input_size', type=int, default=5)
-parser.add_argument('-rnn_input_size', type=int, default=5)
-parser.add_argument('-rnn_hidden_size', type=int, default=50)
-parser.add_argument('-output_size', type=int, default=1)
-parser.add_argument('-rnn_layer', type=int, default=10)
-parser.add_argument('-rnn_dropout_ratio', type=float, default=0)
-
-parser.add_argument('-model_file', default="../model/model.pth.tar", type=str, metavar='PATH', help='path to latest model')
-
-global args
-args = parser.parse_args()
-
 def rnn_sys():
+    global params
+    params = Params()
     
     # constant and input paras
     encoder_dict, encoder_definite = RLL_state_machine()
@@ -57,12 +34,12 @@ def rnn_sys():
     num_sym_in_constrain = encoder_dict[1]['input'].shape[1]
     num_sym_out_constrain = encoder_dict[1]['output'].shape[1]
     rate_constrain = num_sym_in_constrain / num_sym_out_constrain
-    dummy_len = int(args.overlap_length * num_sym_in_constrain / num_sym_out_constrain)
+    dummy_len = int(params.overlap_length * num_sym_in_constrain / num_sym_out_constrain)
     
     # class
     RLL_modulator = RLL_Modulator(encoder_dict, encoder_definite)
     NRZI_converter = NRZI_Converter()
-    disk_read_channel = Disk_Read_Channel()
+    disk_read_channel = Disk_Read_Channel(params)
 
     # device
     os.environ['CUDA_VISIBLE_DEVICES'] = "0"
@@ -71,28 +48,29 @@ def rnn_sys():
     else:
         device = torch.device("cpu")
 
-    model = RNN(args, device).to(device)
+    model = RNN(params, device).to(device)
 
     # load model from model_file
-    if args.model_file:
-        if os.path.isfile(args.model_file):
-            print("=> loading checkpoint '{}'".format(args.model_file))
-            checkpoint = torch.load(args.model_file, weights_only=False)
+    model_path = f"{params.model_dir}/{params.model_file}"
+    if model_path:
+        if os.path.isfile(model_path):
+            print("=> loading checkpoint '{}'".format(model_path))
+            checkpoint = torch.load(model_path, weights_only=False)
             model.load_state_dict(checkpoint['state_dict'])
         else:
-            print("=> no checkpoint found at '{}'".format(args.model_file))
+            print("=> no checkpoint found at '{}'".format(model_path))
     
     # define ber
-    num_ber = int((args.snr_stop-args.snr_start)/args.snr_step+1)
-    codeword_len = int(args.info_len+dummy_len)
+    num_ber = int((params.snr_stop-params.snr_start)/params.snr_step+1)
+    codeword_len = int(params.real_test_len+dummy_len)
     ber_channel = np.zeros((1, num_ber))
     ber_info = np.zeros((1, num_ber))
     
     # eval RNN
     for idx in np.arange(0, num_ber):
-        snr = args.snr_start+idx*args.snr_step
+        snr = params.snr_start+idx*params.snr_step
         
-        info = np.random.randint(2, size = (1, args.info_len+dummy_len))
+        info = np.random.randint(2, size = (1, params.real_test_len+dummy_len))
         codeword = NRZI_converter.forward_coding(RLL_modulator.forward_coding(info))
         
         rf_signal = disk_read_channel.RF_signal(codeword)
@@ -100,11 +78,11 @@ def rnn_sys():
         
         length = equalizer_input.shape[1]
         decodeword = np.empty((1, 0))
-        for pos in range(0, length - args.overlap_length, args.eval_length):
-            equalizer_input_truncation = equalizer_input[:, pos:pos+args.eval_length+args.overlap_length]
-            truncation_input = sliding_shape(equalizer_input_truncation, args.input_size)
+        for pos in range(0, length - params.overlap_length, params.eval_length):
+            equalizer_input_truncation = equalizer_input[:, pos:pos+params.eval_length+params.overlap_length]
+            truncation_input = sliding_shape(equalizer_input_truncation, params.input_size)
             truncation_input = torch.from_numpy(truncation_input).float().to(device)
-            dec_tmp = evaluation(args.eval_length, truncation_input, model, device)
+            dec_tmp = evaluation(params.eval_length, truncation_input, model, device)
             decodeword = np.append(decodeword, dec_tmp, axis=1)
 
         print("The SNR is:")
