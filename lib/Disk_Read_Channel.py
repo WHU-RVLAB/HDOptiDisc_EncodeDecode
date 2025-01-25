@@ -20,18 +20,13 @@ class Disk_Read_Channel(object):
         _, bd_di_coef = BD_symbol_response(bit_periods = 10)
         mid_idx = len(bd_di_coef)//2
         self.bd_di_coef = bd_di_coef[mid_idx : mid_idx + self.params.tap_bd_num].reshape(1,-1)
-        self.len_dummy = self.bd_di_coef.shape[1]
         
-        print('The dipulse bd coefficient is\n')
+        print('\nThe dipulse bd coefficient is')
         print(bd_di_coef)
-        print('Tap bd coefficient is\n')
+        print('\nTap bd coefficient is')
         print(self.bd_di_coef)
-        print('Len Dummy is\n')
-        print(self.len_dummy)
     
     def RF_signal(self, codeword):
-        length = codeword.shape[1] - self.len_dummy
-        codeword = np.pad(codeword[:,:length], ((0, 0), (0, self.len_dummy)), mode='constant')
         rf_signal = (np.convolve(self.bd_di_coef[0, :], codeword[0, :])
                [:-(self.params.tap_bd_num - 1)].reshape(codeword.shape))
         

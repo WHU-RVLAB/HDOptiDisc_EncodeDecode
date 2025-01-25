@@ -7,7 +7,7 @@ sys.path.append(
     os.path.dirname(
         os.path.dirname(
             os.path.abspath(__file__))))
-from lib.Const import RLL_state_machine, Target_channel_state_machine, Target_channel_dummy_bits
+from lib.Const import RLL_state_machine, Target_channel_state_machine
 from lib.Params import Params
 from lib.Channel_Modulator import RLL_Modulator
 from lib.Channel_Converter import NRZI_Converter
@@ -24,8 +24,6 @@ def realistic_sys(params:Params):
     # constant and input paras
     encoder_dict, encoder_definite = RLL_state_machine()
     channel_dict = Target_channel_state_machine()
-    dummy_start_paths, dummy_start_input, dummy_start_output, dummy_start_eval, \
-    dummy_end_paths, dummy_end_input, dummy_end_output, dummy_end_eval = Target_channel_dummy_bits()
 
     # Initial metric 
     ini_metric = 1000 * np.ones((channel_dict['num_state'], 1))
@@ -36,14 +34,12 @@ def realistic_sys(params:Params):
     num_sym_in_constrain = encoder_dict[1]['input'].shape[1]
     num_sym_out_constrain = encoder_dict[1]['output'].shape[1]
     rate_constrain = num_sym_in_constrain / num_sym_out_constrain
-    dummy_len = int(params.overlap_length * num_sym_in_constrain 
-                 / num_sym_out_constrain)
     
     # class
     RLL_modulator = RLL_Modulator(encoder_dict, encoder_definite)
     NRZI_converter = NRZI_Converter()
     disk_read_channel = Disk_Read_Channel(params)
-    target_pr_channel = Target_PR_Channel(channel_dict, dummy_end_paths, channel_dict['ini_state'])
+    target_pr_channel = Target_PR_Channel(params)
     viterbi_detector = Viterbi(params, channel_dict, ini_metric)
     
     pr_adaptive_equalizer = Adaptive_Equalizer(        
@@ -53,12 +49,12 @@ def realistic_sys(params:Params):
         mu = 0.01
     )
     pr_adaptive_equalizer.equalizer_coeffs = np.loadtxt(params.equalizer_coeffs_file).reshape(1, -1)
-    print(f"load equalizer_coeffs from txt files:{params.equalizer_coeffs_file}")
-    print(f"equalizer_coeffs are {pr_adaptive_equalizer.equalizer_coeffs}")
+    print(f"\nload equalizer_coeffs from txt files:{params.equalizer_coeffs_file}")
+    print(f"\nequalizer_coeffs are {pr_adaptive_equalizer.equalizer_coeffs}")
     
     # define ber
     num_ber = int((params.snr_stop-params.snr_start)/params.snr_step+1)
-    codeword_len = int(params.real_test_len+dummy_len)
+    codeword_len = int(params.real_test_len/rate_constrain)
     ber_channel = np.zeros((1, num_ber))
     ber_info = np.zeros((1, num_ber))
     
@@ -66,7 +62,7 @@ def realistic_sys(params:Params):
     for idx in np.arange(0, num_ber):
         snr = params.snr_start+idx*params.snr_step
         
-        info = np.random.randint(2, size = (1, params.real_test_len+dummy_len))
+        info = np.random.randint(2, size = (1, params.real_test_len))
         codeword = NRZI_converter.forward_coding(RLL_modulator.forward_coding(info))
         
         rf_signal = disk_read_channel.RF_signal(codeword)

@@ -20,6 +20,9 @@ class Params:
         # bd symbol response params
         self.tap_bd_num = 6
         
+        # target channel params
+        self.PR_coefs = [1, 2, 2, 2, 1]
+        
         # dataset params
         self.train_set_batches = 100
         self.test_set_batches = 50
@@ -49,9 +52,9 @@ class Params:
         
         # model infer params
         self.real_test_len = 1000000
-        self.real_eval_len = 100
-        self.eval_length = 30
-        self.overlap_length = 30
+        self.real_eval_len = 200
+        self.eval_length = 60
+        self.overlap_length = 60
         self.snr_start = 30
         self.snr_stop = 50
         self.snr_step = 1

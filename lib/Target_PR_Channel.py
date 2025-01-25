@@ -4,7 +4,7 @@ import numpy as np
 sys.path.append(
     os.path.dirname(
         os.path.abspath(__file__)))
-from Const import RLL_state_machine, Target_channel_state_machine, Target_channel_dummy_bits
+from Const import RLL_state_machine
 from Channel_Modulator import RLL_Modulator
 from Channel_Converter import NRZI_Converter
 from Utils import plot_separated
@@ -14,43 +14,17 @@ import pdb
     
 class Target_PR_Channel(object):
     
-    def __init__(self, channel_dict, dummy_list, ini_state):
-        self.channel_dict = channel_dict
-        self.dummy_list = dummy_list
-        self.ini_state = ini_state
+    def __init__(self, params:Params):
+        self.PR_coefs = np.array(params.PR_coefs).reshape(1,-1)
         
-        self.len_dummy = self.dummy_list[0].shape[1]
-        self.num_input_sym = int(self.channel_dict['in_out'].shape[1] / 2)
+        print('\nTarget Channel is')
+        print(self.PR_coefs)
     
-    def target_channel(self, x):
-        '''
-        Input: (1, length) array
-        Output: (1, len + dummy_len) array
-        Mapping: channel state machine to zero state
-        '''
+    def target_channel(self, codeword):
+        target_channel_signal = (np.convolve(self.PR_coefs[0, :], codeword[0, :])
+               [:-(self.PR_coefs.shape[1] - 1)].reshape(codeword.shape))
         
-        # remember 5 dummy values in the end
-        length = x.shape[1] - self.len_dummy
-        y = np.zeros((1, x.shape[1]))
-        
-        # Memory channel
-        state = self.ini_state
-        for i in range(0, length, self.num_input_sym):
-            set_in = np.where(self.channel_dict['state_machine'][:, 0]==state)[0]
-            idx_in = set_in[np.where(self.channel_dict['in_out'][set_in, 0]==x[:, i])[0]]
-            y[:, i] = self.channel_dict['in_out'][idx_in, 1]
-            state = self.channel_dict['state_machine'][idx_in, 1]
-        
-        # Dummy bits to zero state
-        path_dummy = self.dummy_list[state[0]]
-        for i in range(0, self.len_dummy, self.num_input_sym):
-            set_in = np.where(self.channel_dict['state_machine'][:, 0]==state)[0]
-            idx_in = (set_in[np.where(self.channel_dict['state_machine'][set_in, 1]==
-                                      path_dummy[:, i])[0]])
-            y[:, i+length] = self.channel_dict['in_out'][idx_in, 1]
-            state = path_dummy[:, i]
-        
-        return y
+        return target_channel_signal
     
     def awgn(self, x, snr):
         E_b = 1
@@ -62,13 +36,10 @@ if __name__ == '__main__':
     # constant and input paras
     params = Params()
     encoder_dict, encoder_definite = RLL_state_machine()
-    channel_dict = Target_channel_state_machine()
-    dummy_start_paths, dummy_start_input, dummy_start_output, dummy_start_eval, \
-    dummy_end_paths, dummy_end_input, dummy_end_output, dummy_end_eval = Target_channel_dummy_bits()
 
     RLL_modulator = RLL_Modulator(encoder_dict, encoder_definite)
     NRZI_converter = NRZI_Converter()
-    target_pr_channel = Target_PR_Channel(channel_dict, dummy_end_paths, channel_dict['ini_state'])
+    target_pr_channel = Target_PR_Channel(params)
     
     code_rate = 2/3
     Normalized_t = np.linspace(1, int(params.real_eval_len/code_rate), int(params.real_eval_len/code_rate))

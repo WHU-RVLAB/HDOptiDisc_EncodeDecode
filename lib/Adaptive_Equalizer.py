@@ -4,7 +4,7 @@ import numpy as np
 sys.path.append(
     os.path.dirname(
         os.path.abspath(__file__)))
-from Const import RLL_state_machine, Target_channel_state_machine, Target_channel_dummy_bits
+from Const import RLL_state_machine
 from Channel_Modulator import RLL_Modulator
 from Channel_Converter import NRZI_Converter
 from Disk_Read_Channel import Disk_Read_Channel
@@ -21,25 +21,20 @@ class Adaptive_Equalizer(object):
         self.taps_num = taps_num
         self.equalizer_coeffs = np.zeros((1, self.taps_num))
         self.mu = mu
+        self.len_padding = taps_num - 1
         
-    def lms(self):
-        N = self.equalizer_input.shape[1] - 6
+        print('\nLen Padding in adaptive equalizer training is')
+        print(self.len_padding)
         
+    def lms(self):   
         equalizer_output = np.zeros(self.equalizer_input.shape)
         error_signal = np.zeros(self.equalizer_input.shape)
         error_signal_square = np.zeros(self.equalizer_input.shape)
-
-        for pos in range(N):
-            start_idx = max(pos - (self.taps_num-1), 0)
-            end_idx = min(pos + 1, N)
         
-            equalizer_input_truncation = self.equalizer_input[:, start_idx:end_idx]
-            
-            current_length = end_idx - start_idx
-            if current_length < self.taps_num:
-                padding_length = self.taps_num - current_length
-                equalizer_input_truncation = np.pad(equalizer_input_truncation, ((0, 0), (padding_length, 0)), mode='constant')
+        equalizer_input = np.pad(self.equalizer_input[:,:], ((0, 0), (self.len_padding, 0)), mode='constant')
 
+        for pos in range(self.equalizer_input.shape[1]):
+            equalizer_input_truncation = equalizer_input[:, pos:pos + self.taps_num]
             equalizer_input_truncation = np.fliplr(equalizer_input_truncation)
             equalizer_output[0, pos] = np.dot(self.equalizer_coeffs[0,:], equalizer_input_truncation[0, :])
             error_signal[0, pos] = equalizer_output[0, pos] - self.reference_signal[0, pos]
@@ -52,7 +47,7 @@ class Adaptive_Equalizer(object):
         equalizer_output = np.zeros(self.equalizer_input.shape)
         
         equalizer_output = (np.convolve(self.equalizer_coeffs[0,:], self.equalizer_input[0, :])
-               [:-(self.taps_num-1)].reshape(self.equalizer_input.shape))
+               [:-self.len_padding].reshape(self.equalizer_input.shape))
             
         return equalizer_output
 
@@ -61,28 +56,23 @@ if __name__ == '__main__':
     # constant and input paras
     params = Params()
     encoder_dict, encoder_definite = RLL_state_machine()
-    channel_dict = Target_channel_state_machine()
-    dummy_start_paths, dummy_start_input, dummy_start_output, dummy_start_eval, \
-    dummy_end_paths, dummy_end_input, dummy_end_output, dummy_end_eval = Target_channel_dummy_bits()
     
     # rate for constrained code
     num_sym_in_constrain = encoder_dict[1]['input'].shape[1]
     num_sym_out_constrain = encoder_dict[1]['output'].shape[1]
     rate_constrain = num_sym_in_constrain / num_sym_out_constrain
-    dummy_len = int(params.overlap_length * num_sym_in_constrain 
-                 / num_sym_out_constrain)
     codeword_len = int(params.equalizer_train_len/rate_constrain)
     
     # class
     RLL_modulator = RLL_Modulator(encoder_dict, encoder_definite)
     NRZI_converter = NRZI_Converter()
     disk_read_channel = Disk_Read_Channel(params)
-    target_pr_channel = Target_PR_Channel(channel_dict, dummy_end_paths, channel_dict['ini_state'])
+    target_pr_channel = Target_PR_Channel(params)
     
     code_rate = 2/3
-    Normalized_t = np.linspace(1, int((params.equalizer_train_len+dummy_len)/code_rate), int((params.equalizer_train_len+dummy_len)/code_rate))
+    Normalized_t = np.linspace(1, int(params.equalizer_train_len/code_rate), int(params.equalizer_train_len/code_rate))
         
-    train_bits = np.random.randint(2, size = (1, params.equalizer_train_len+dummy_len))
+    train_bits = np.random.randint(2, size = (1, params.equalizer_train_len))
     codeword = NRZI_converter.forward_coding(RLL_modulator.forward_coding(train_bits))
     
     rf_signal = disk_read_channel.RF_signal(codeword)
@@ -172,7 +162,7 @@ if __name__ == '__main__':
     print(f"equalizer_coeffs are {pr_adaptive_equalizer.equalizer_coeffs}")
 
     # validate  
-    info = np.random.randint(2, size = (1, params.real_eval_len+dummy_len))
+    info = np.random.randint(2, size = (1, params.real_eval_len))
     codeword = NRZI_converter.forward_coding(RLL_modulator.forward_coding(info))
     
     rf_signal = disk_read_channel.RF_signal(codeword)

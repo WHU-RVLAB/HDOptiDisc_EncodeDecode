@@ -8,7 +8,7 @@ sys.path.append(
     os.path.dirname(
         os.path.dirname(
             os.path.abspath(__file__))))
-from lib.Const import RLL_state_machine, Target_channel_state_machine, Target_channel_dummy_bits
+from lib.Const import RLL_state_machine, Target_channel_state_machine
 from lib.Utils import sliding_shape, evaluation
 from lib.Channel_Modulator import RLL_Modulator
 from lib.Channel_Converter import NRZI_Converter
@@ -27,14 +27,11 @@ def rnn_sys():
     # constant and input paras
     encoder_dict, encoder_definite = RLL_state_machine()
     channel_dict = Target_channel_state_machine()
-    dummy_start_paths, dummy_start_input, dummy_start_output, dummy_start_eval, \
-    dummy_end_paths, dummy_end_input, dummy_end_output, dummy_end_eval = Target_channel_dummy_bits()
     
     # rate for constrained code
     num_sym_in_constrain = encoder_dict[1]['input'].shape[1]
     num_sym_out_constrain = encoder_dict[1]['output'].shape[1]
     rate_constrain = num_sym_in_constrain / num_sym_out_constrain
-    dummy_len = int(params.overlap_length * num_sym_in_constrain / num_sym_out_constrain)
     
     # class
     RLL_modulator = RLL_Modulator(encoder_dict, encoder_definite)
@@ -62,7 +59,7 @@ def rnn_sys():
     
     # define ber
     num_ber = int((params.snr_stop-params.snr_start)/params.snr_step+1)
-    codeword_len = int(params.real_test_len+dummy_len)
+    codeword_len = int(params.real_test_len/rate_constrain)
     ber_channel = np.zeros((1, num_ber))
     ber_info = np.zeros((1, num_ber))
     
@@ -70,7 +67,7 @@ def rnn_sys():
     for idx in np.arange(0, num_ber):
         snr = params.snr_start+idx*params.snr_step
         
-        info = np.random.randint(2, size = (1, params.real_test_len+dummy_len))
+        info = np.random.randint(2, size = (1, params.real_test_len))
         codeword = NRZI_converter.forward_coding(RLL_modulator.forward_coding(info))
         
         rf_signal = disk_read_channel.RF_signal(codeword)
