@@ -34,6 +34,8 @@ def realistic_sys(params:Params):
     num_sym_in_constrain = encoder_dict[1]['input'].shape[1]
     num_sym_out_constrain = encoder_dict[1]['output'].shape[1]
     rate_constrain = num_sym_in_constrain / num_sym_out_constrain
+    dummy_len = int(params.overlap_length * num_sym_in_constrain 
+                 / num_sym_out_constrain)
     
     # class
     RLL_modulator = RLL_Modulator(encoder_dict, encoder_definite)
@@ -62,7 +64,7 @@ def realistic_sys(params:Params):
     for idx in np.arange(0, num_ber):
         snr = params.snr_start+idx*params.snr_step
         
-        info = np.random.randint(2, size = (1, params.real_test_len))
+        info = np.random.randint(2, size = (1, params.real_test_len + dummy_len))
         codeword = NRZI_converter.forward_coding(RLL_modulator.forward_coding(info))
         
         rf_signal = disk_read_channel.RF_signal(codeword)
