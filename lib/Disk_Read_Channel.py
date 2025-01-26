@@ -33,7 +33,7 @@ class Disk_Read_Channel(object):
         return rf_signal
     
     def awgn(self, x, snr):
-        E_b = 1
+        E_b = np.mean(np.square(x[0, :self.params.truncation4energy]))
         sigma = np.sqrt(0.5 * E_b * 10 ** (- snr * 1.0 / 10))
         return x + sigma * np.random.normal(0, 1, x.shape)
     
@@ -46,10 +46,16 @@ if __name__ == '__main__':
     NRZI_converter = NRZI_Converter()
     disk_read_channel = Disk_Read_Channel(params)
     
-    num_ber = int((params.snr_stop-params.snr_start)/params.snr_step+1)
+    # rate for constrained code
+    num_sym_in_constrain = encoder_dict[1]['input'].shape[1]
+    num_sym_out_constrain = encoder_dict[1]['output'].shape[1]
+    rate_constrain = num_sym_in_constrain / num_sym_out_constrain
+    codeword_len = int(params.equalizer_train_len/rate_constrain)
     
-    code_rate = 2/3
-    Normalized_t = np.linspace(1, int(params.real_eval_len/code_rate), int(params.real_eval_len/code_rate))
+    params.snr_step = (params.snr_stop-params.snr_start)/(params.num_plots - 1)
+    num_ber = int((params.snr_stop-params.snr_start)/params.snr_step + 1)
+    
+    Normalized_t = np.linspace(1, int(params.real_eval_len/rate_constrain), int(params.real_eval_len/rate_constrain))
     
     for idx in np.arange(0, num_ber):
         snr = params.snr_start+idx*params.snr_step

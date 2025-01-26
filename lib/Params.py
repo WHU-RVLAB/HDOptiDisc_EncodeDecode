@@ -14,6 +14,9 @@ class Params:
         self.equalizer_coeffs_dir = "../data"
         self.equalizer_coeffs_file = "../data/equalizer_coeffs.txt"
         
+        # plot params
+        self.num_plots = 5
+        
         # equalizer params
         self.equalizer_train_len = 1000000
         
@@ -22,6 +25,9 @@ class Params:
         
         # target channel params
         self.PR_coefs = [1, 2, 2, 2, 1]
+        
+        # awgn params
+        self.truncation4energy = 5000
         
         # dataset params
         self.train_set_batches = 100
@@ -52,11 +58,11 @@ class Params:
         
         # model infer params
         self.real_test_len = 1000000
-        self.real_eval_len = 200
+        self.real_eval_len = 5000
         self.eval_length = 60
         self.overlap_length = 60
-        self.snr_start = 30
-        self.snr_stop = 50
+        self.snr_start = 5
+        self.snr_stop = 45
         self.snr_step = 1
-        self.snr_eval = 40
+        self.snr_train = 20 # add noise while train equalizer
     

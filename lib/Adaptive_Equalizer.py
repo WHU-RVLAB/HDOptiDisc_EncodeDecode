@@ -69,14 +69,13 @@ if __name__ == '__main__':
     disk_read_channel = Disk_Read_Channel(params)
     target_pr_channel = Target_PR_Channel(params)
     
-    code_rate = 2/3
-    Normalized_t = np.linspace(1, int(params.equalizer_train_len/code_rate), int(params.equalizer_train_len/code_rate))
+    Normalized_t = np.linspace(1, int(params.equalizer_train_len/rate_constrain), int(params.equalizer_train_len/rate_constrain))
         
     train_bits = np.random.randint(2, size = (1, params.equalizer_train_len))
     codeword = NRZI_converter.forward_coding(RLL_modulator.forward_coding(train_bits))
     
     rf_signal = disk_read_channel.RF_signal(codeword)
-    equalizer_input = disk_read_channel.awgn(rf_signal, params.snr_eval)
+    equalizer_input = disk_read_channel.awgn(rf_signal, params.snr_train)
     
     pr_signal = target_pr_channel.target_channel(codeword)
     
@@ -97,13 +96,13 @@ if __name__ == '__main__':
     Ys = [
         {'data': codeword.reshape(-1), 'label': 'binary Sequence'}, 
         {'data': rf_signal.reshape(-1), 'label': 'rf_signal', 'color': 'red'},
-        {'data': equalizer_input.reshape(-1), 'label': f'equalizer_input_snr{params.snr_eval}', 'color': 'red'},
+        {'data': equalizer_input.reshape(-1), 'label': f'equalizer_input_snr{params.snr_train}', 'color': 'red'},
         {'data': pr_signal.reshape(-1), 'label': 'pr_signal', 'color': 'red'},
     ]
     titles = [
         'Binary Sequence',
         'rf_signal',
-        f'equalizer_input_snr{params.snr_eval}',
+        f'equalizer_input_snr{params.snr_train}',
         'pr_signal',
     ]
     xlabels = ["Time (t/T)"]
@@ -162,11 +161,13 @@ if __name__ == '__main__':
     print(f"equalizer_coeffs are {pr_adaptive_equalizer.equalizer_coeffs}")
 
     # validate  
-    info = np.random.randint(2, size = (1, params.real_eval_len))
+    info_len = int((params.num_plots*params.eval_length + params.overlap_length)*rate_constrain)
+    info = np.random.randint(2, size = (1, info_len))
     codeword = NRZI_converter.forward_coding(RLL_modulator.forward_coding(info))
     
     rf_signal = disk_read_channel.RF_signal(codeword)
-    equalizer_input = disk_read_channel.awgn(rf_signal, params.snr_eval)
+    random_snr = np.random.uniform(params.snr_start, params.snr_stop)
+    equalizer_input = disk_read_channel.awgn(rf_signal, random_snr)
     pr_signal = target_pr_channel.target_channel(codeword)
     
     length = equalizer_input.shape[1]
@@ -195,14 +196,14 @@ if __name__ == '__main__':
         Ys = [
             {'data': codeword_truncation.reshape(-1), 'label': 'binary Sequence'}, 
             {'data': rf_signal_truncation.reshape(-1), 'label': 'rf_signal_truncation', 'color': 'red'},
-            {'data': equalizer_input_truncation.reshape(-1), 'label': 'equalizer_input_truncation', 'color': 'red'},
+            {'data': equalizer_input_truncation.reshape(-1), 'label': f'equalizer_input_truncation_snr{random_snr}', 'color': 'red'},
             {'data': pr_signal_truncation.reshape(-1), 'label': 'pr_signal_truncation', 'color': 'red'},
             {'data': detector_input.reshape(-1), 'label': 'detector_input', 'color': 'red'},
         ]
         titles = [
             'codeword_truncation',
             'rf_signal_truncation',
-            'equalizer_input_truncation',
+            f'equalizer_input_truncation_snr{random_snr}',
             'pr_signal_truncation',
             'detector_input',
         ]

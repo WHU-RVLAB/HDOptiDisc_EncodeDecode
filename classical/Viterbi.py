@@ -112,7 +112,7 @@ def realistic_sys(params:Params):
             # Ys = [
             #     {'data': codeword_truncation.reshape(-1), 'label': 'binary Sequence'}, 
             #     {'data': rf_signal_truncation.reshape(-1), 'label': 'rf_signal_truncation', 'color': 'red'},
-            #     {'data': equalizer_input_truncation.reshape(-1), 'label': 'equalizer_input_truncation', 'color': 'red'},
+            #     {'data': equalizer_input_truncation.reshape(-1), 'label': f'equalizer_input_truncation_snr{snr}', 'color': 'red'},
             #     {'data': pr_signal_truncation.reshape(-1), 'label': 'pr_signal_truncation', 'color': 'red'},
             #     {'data': detector_input.reshape(-1), 'label': 'detector_input', 'color': 'red'},
             #     {'data': pr_signal_noise_truncation.reshape(-1), 'label': 'pr_signal_noise_truncation', 'color': 'red'},
@@ -120,7 +120,7 @@ def realistic_sys(params:Params):
             # titles = [
             #     'codeword_truncation',
             #     'rf_signal_truncation',
-            #     'equalizer_input_truncation',
+            #     f'equalizer_input_truncation_snr{snr}',
             #     'pr_signal_truncation',
             #     'detector_input',
             #     'pr_signal_noise_truncation'
