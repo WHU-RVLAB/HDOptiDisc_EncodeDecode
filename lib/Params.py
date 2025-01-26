@@ -19,8 +19,9 @@ class Params:
         
         # equalizer params
         self.equalizer_train_len = 1000000
+        self.snr_train = 20 # add noise while train equalizer
         
-        # bd symbol response params
+        # rf channel params
         self.tap_bd_num = 6
         
         # target channel params
@@ -29,11 +30,22 @@ class Params:
         # awgn params
         self.truncation4energy = 5000
         
+        # drop len in channel
+        self.drop_len = 60
+        
         # dataset params
         self.train_set_batches = 100
-        self.test_set_batches = 50
-        self.validate_set_batches = 10000
-        self.batch_size_train = 300
+        self.test_set_batches = 100
+        self.validate_set_batches = 100
+        self.data_train_len = 1000000
+        self.data_test_len = 10000
+        self.data_val_len = 5000
+        self.snr_start = 5
+        self.snr_stop = 45
+        self.snr_step = 1
+        
+        # dataloader params
+        self.batch_size_train = 600
         self.batch_size_test = 600
         self.batch_size_val = 600
 
@@ -57,12 +69,6 @@ class Params:
         self.weight_decay = 0.0001
         
         # model infer params
-        self.real_test_len = 1000000
-        self.real_eval_len = 5000
         self.eval_length = 60
         self.overlap_length = 60
-        self.snr_start = 5
-        self.snr_stop = 45
-        self.snr_step = 1
-        self.snr_train = 20 # add noise while train equalizer
     

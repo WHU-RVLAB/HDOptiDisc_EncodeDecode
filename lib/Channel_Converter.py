@@ -52,7 +52,7 @@ if __name__ == '__main__':
     RLL_modulator = RLL_Modulator(encoder_dict, encoder_definite)
     NRZI_converter = NRZI_Converter()
         
-    info = np.random.randint(2, size = (1, params.real_eval_len))
+    info = np.random.randint(2, size = (1, params.data_val_len))
     RLL_codeword = RLL_modulator.forward_coding(info)
     NRZI_codeword = NRZI_converter.forward_coding(RLL_codeword)
     

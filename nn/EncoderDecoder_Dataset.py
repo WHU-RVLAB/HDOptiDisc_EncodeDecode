@@ -1,6 +1,5 @@
 import os
 import numpy as np
-import math
 import sys
 import torch
 from torch.utils.data import Dataset
@@ -52,33 +51,42 @@ class Rawdb(object):
         self.NRZI_converter = NRZI_Converter()
         self.disk_read_channel = Disk_Read_Channel(params)
     
-    def data_generation_train(self, prob, bt_size_snr):
+    def data_generation(self, prob, info_len):
         '''
         training/testing data(with sliding window) and label
         output: numpy array 
         '''
+        dummy_len = int(params.overlap_length * self.code_rate)
+        dummy_start_len = int(params.drop_len * self.code_rate)
+        # define ber
+        num_ber = int((params.snr_stop-params.snr_start)/params.snr_step+1)
         
-        bt_size = int(((self.params.snr_stop-self.params.snr_start)/
-                         self.params.snr_step+1)*bt_size_snr)
-        
+        bt_size_snr = int(info_len/params.eval_length)
+        bt_size = num_ber*bt_size_snr
         block_length = self.params.eval_length + self.params.overlap_length
-        info_length = math.ceil(block_length/self.num_out_sym)*self.num_input_sym_enc
+        data, label = (np.zeros((bt_size, block_length)), np.zeros((bt_size, block_length)))
         
-        info = np.random.choice(np.arange(0, 2), size = (bt_size_snr, info_length), p=[1-prob, prob])
-        
-        data, label = (np.zeros((bt_size, block_length)), 
-                                 np.zeros((bt_size, block_length)))
-                
-        for i in range(bt_size_snr):
-            codeword = (self.NRZI_converter.forward_coding(self.RLL_modulator.forward_coding(info[i : i+1, :]))[:, :block_length])
+        # generate data and label from stream data
+        for snr_idx in np.arange(0, num_ber):
+            snr = params.snr_start+snr_idx*params.snr_step
             
-            for idx in np.arange(0, (self.params.snr_stop-self.params.snr_start)/self.params.snr_step+1):
-                label[int(idx*bt_size_snr+i) : int(idx*bt_size_snr+i+1), :] = codeword
+            info = np.random.choice(np.arange(0, 2), size = (1, dummy_start_len + info_len + dummy_len), p=[1-prob, prob])
+            
+            codeword = self.NRZI_converter.forward_coding(self.RLL_modulator.forward_coding(info))
+            
+            rf_signal = self.disk_read_channel.RF_signal(codeword)
+            rf_signal = rf_signal[0, params.drop_len:]
+            equalizer_input = self.disk_read_channel.awgn(rf_signal, snr)
+            
+            length = equalizer_input.shape[1]
+            for signal_idx, pos in enumerate(range(0, length - params.overlap_length, params.eval_length)):
                 
-                rf_signal = self.disk_read_channel.RF_signal(codeword)
-                equalizer_input = self.disk_read_channel.awgn(rf_signal, self.params.snr_start+idx*self.params.snr_step)
+                codeword_truncation = codeword[:, pos:pos+params.eval_length+params.overlap_length]
+                rf_signal_truncation = rf_signal[:, pos:pos+params.eval_length+params.overlap_length]
+                equalizer_input_truncation = equalizer_input[:, pos:pos+params.eval_length+params.overlap_length]
                 
-                data[int(idx*bt_size_snr+i) : int(idx*bt_size_snr+i+1), :] = equalizer_input
+                label[snr_idx*bt_size_snr + signal_idx:snr_idx*bt_size_snr + signal_idx + 1, :] = codeword_truncation
+                data[snr_idx*bt_size_snr + signal_idx:snr_idx*bt_size_snr + signal_idx + 1, :]  = equalizer_input_truncation
         
         data = sliding_shape(data, self.params.input_size)
         label = label
@@ -87,27 +95,38 @@ class Rawdb(object):
     
     def data_generation_eval(self, prob, snr):
         '''
-        evaluation data(without sliding window) and label
+        evaluation data and label
         output: numpy array data_eval, numpy array label_eval
         '''
-        code_rate = 2/3
-        info = np.random.choice(np.arange(0, 2), size = (1, int(code_rate * self.params.batch_size_val)),  p=[1-prob, prob])
+        dummy_len = int(params.overlap_length * self.code_rate)
+        dummy_start_len = int(params.drop_len * self.code_rate)
+        
+        bt_size_snr = int(params.data_val_len/params.eval_length)
+        bt_size = bt_size_snr
+        block_length = self.params.eval_length + self.params.overlap_length
+        data, label = (np.zeros((bt_size, block_length)), np.zeros((bt_size, block_length)))
+        
+        # generate data and label from stream data
+        info = np.random.choice(np.arange(0, 2), size = (1, dummy_start_len + params.data_val_len + dummy_len), p=[1-prob, prob])
+        
         codeword = self.NRZI_converter.forward_coding(self.RLL_modulator.forward_coding(info))
         
         rf_signal = self.disk_read_channel.RF_signal(codeword)
+        rf_signal = rf_signal[0, params.drop_len:]
         equalizer_input = self.disk_read_channel.awgn(rf_signal, snr)
-
-        equalizer_input = np.concatenate((equalizer_input, (np.zeros((1, self.params.overlap_length)))), axis=1)
-
-        block_length = self.params.eval_length + self.params.overlap_length
-        sliding_equalizer_input = np.empty((0, block_length))
-        x_len = equalizer_input.shape[1]
-        for idx in range(block_length, x_len + 1, self.params.eval_length):
-            block = equalizer_input[:, idx-block_length : idx]
-            sliding_equalizer_input = np.append(sliding_equalizer_input, block, axis=0)
-
-        data = sliding_shape(sliding_equalizer_input, self.params.input_size)
-        label = codeword.reshape(-1, self.params.eval_length)
+        
+        length = equalizer_input.shape[1]
+        for signal_idx, pos in enumerate(range(0, length - params.overlap_length, params.eval_length)):
+            
+            codeword_truncation = codeword[:, pos:pos+params.eval_length+params.overlap_length]
+            rf_signal_truncation = rf_signal[:, pos:pos+params.eval_length+params.overlap_length]
+            equalizer_input_truncation = equalizer_input[:, pos:pos+params.eval_length+params.overlap_length]
+            
+            label[signal_idx:signal_idx + 1, :] = codeword_truncation
+            data[signal_idx:signal_idx + 1, :]  = equalizer_input_truncation
+        
+        data = sliding_shape(data, self.params.input_size)
+        label = label
         
         return data, label
     
@@ -120,14 +139,14 @@ class Rawdb(object):
 
         data = np.empty((0, block_length, self.params.input_size))
         label = np.empty((0, block_length))
-        for idx in range(self.params.train_set_batches):
+        for _ in range(self.params.train_set_batches):
 
             miu = (0.1 + 0.9)/2
             sigma = (0.9 - miu)/2
             random_p = np.random.normal(miu, sigma)
             random_p = min(max(random_p, 0), 1)
 
-            data_train, label_train = self.data_generation_train(random_p, self.params.batch_size_train)
+            data_train, label_train = self.data_generation(random_p, params.data_train_len)
             data = np.append(data, data_train, axis=0)
             label = np.append(label, label_train, axis=0)
 
@@ -139,14 +158,14 @@ class Rawdb(object):
 
         data = np.empty((0, block_length, self.params.input_size))
         label = np.empty((0, block_length))
-        for idx in range(self.params.test_set_batches):
+        for _ in range(self.params.test_set_batches):
 
             miu = (0.1 + 0.9)/2
             sigma = (0.9 - miu)/2
             random_p = np.random.normal(miu, sigma)
             random_p = min(max(random_p, 0), 1)
 
-            data_test, label_test = self.data_generation_train(random_p, self.params.batch_size_test)
+            data_test, label_test = self.data_generation(random_p, params.data_test_len)
             data = np.append(data, data_test, axis=0)
             label = np.append(label, label_test, axis=0)
 
@@ -157,8 +176,8 @@ class Rawdb(object):
         }, file_path)
 
         data = np.empty((0, block_length, self.params.input_size))
-        label = np.empty((0, self.params.eval_length))
-        for idx in range(self.params.validate_set_batches):
+        label = np.empty((0, block_length))
+        for _ in range(self.params.validate_set_batches):
 
             miu = (0.1 + 0.9)/2
             sigma = (0.9 - miu)/2

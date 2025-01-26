@@ -14,7 +14,7 @@ sys.path.append(
         os.path.dirname(
             os.path.abspath(__file__))))
 from lib.Utils import evaluation
-from nn.Dataset import PthDataset
+from nn.EncoderDecoder_Dataset import PthDataset
 from lib.Params import Params
 from RNN import RNN
 sys.path.pop()

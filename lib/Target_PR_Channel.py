@@ -51,12 +51,12 @@ if __name__ == '__main__':
     params.snr_step = (params.snr_stop-params.snr_start)/(params.num_plots - 1)
     num_ber = int((params.snr_stop-params.snr_start)/params.snr_step + 1)
     
-    Normalized_t = np.linspace(1, int(params.real_eval_len/rate_constrain), int(params.real_eval_len/rate_constrain))
+    Normalized_t = np.linspace(1, int(params.data_val_len/rate_constrain), int(params.data_val_len/rate_constrain))
     
     for idx in np.arange(0, num_ber):
         snr = params.snr_start+idx*params.snr_step
         
-        info = np.random.randint(2, size = (1, params.real_eval_len))
+        info = np.random.randint(2, size = (1, params.data_val_len))
         codeword = NRZI_converter.forward_coding(RLL_modulator.forward_coding(info))
         pr_signal = target_pr_channel.target_channel(codeword)
         pr_signal_noise = target_pr_channel.awgn(pr_signal, snr)
