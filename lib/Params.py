@@ -60,7 +60,7 @@ class Params:
         # train params
         self.num_epoch = 400
         self.eval_freq = 5
-        self.eval_start = 200
+        self.eval_start = 0
         self.print_freq_ep = 5
         
         # optimizer params
