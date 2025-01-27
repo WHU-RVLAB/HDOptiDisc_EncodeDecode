@@ -73,9 +73,11 @@ class Rawdb(object):
             info = np.random.choice(np.arange(0, 2), size = (1, dummy_start_len + info_len + dummy_len), p=[1-prob, prob])
             
             codeword = self.NRZI_converter.forward_coding(self.RLL_modulator.forward_coding(info))
-            
             rf_signal = self.disk_read_channel.RF_signal(codeword)
-            rf_signal = rf_signal[0, params.drop_len:]
+            
+            codeword  = codeword[:, params.drop_len:]
+            rf_signal = rf_signal[:, params.drop_len:]
+            
             equalizer_input = self.disk_read_channel.awgn(rf_signal, snr)
             
             length = equalizer_input.shape[1]
@@ -91,11 +93,13 @@ class Rawdb(object):
         data = sliding_shape(data, self.params.input_size)
         label = label
         
+        print("generate training/testing data(with sliding window) and label")
+        
         return data, label
     
     def data_generation_eval(self, prob, snr):
         '''
-        evaluation data and label
+        evaluation data (with sliding window) and label
         output: numpy array data_eval, numpy array label_eval
         '''
         dummy_len = int(params.overlap_length * self.code_rate)
@@ -110,9 +114,11 @@ class Rawdb(object):
         info = np.random.choice(np.arange(0, 2), size = (1, dummy_start_len + params.data_val_len + dummy_len), p=[1-prob, prob])
         
         codeword = self.NRZI_converter.forward_coding(self.RLL_modulator.forward_coding(info))
-        
         rf_signal = self.disk_read_channel.RF_signal(codeword)
-        rf_signal = rf_signal[0, params.drop_len:]
+        
+        codeword  = codeword[:, params.drop_len:]
+        rf_signal = rf_signal[:, params.drop_len:]
+        
         equalizer_input = self.disk_read_channel.awgn(rf_signal, snr)
         
         length = equalizer_input.shape[1]
@@ -127,6 +133,8 @@ class Rawdb(object):
         
         data = sliding_shape(data, self.params.input_size)
         label = label
+        
+        print("generate evaluation data (with sliding window) and label")
         
         return data, label
     
@@ -155,6 +163,7 @@ class Rawdb(object):
             'data': data,
             'label': label
         }, file_path)
+        print("\ngenerate training dataset")
 
         data = np.empty((0, block_length, self.params.input_size))
         label = np.empty((0, block_length))
@@ -174,6 +183,7 @@ class Rawdb(object):
             'data': data,
             'label': label
         }, file_path)
+        print("\ngenerate testing dataset")
 
         data = np.empty((0, block_length, self.params.input_size))
         label = np.empty((0, block_length))
@@ -198,6 +208,7 @@ class Rawdb(object):
             'data': data,
             'label': label
         }, file_path)
+        print("\ngenerate validate dataset")
 
 if __name__ == '__main__':
     params = Params()

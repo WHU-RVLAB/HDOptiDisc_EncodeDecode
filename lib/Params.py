@@ -34,11 +34,11 @@ class Params:
         self.drop_len = 60
         
         # dataset params
-        self.train_set_batches = 100
+        self.train_set_batches = 200
         self.test_set_batches = 100
         self.validate_set_batches = 100
-        self.data_train_len = 1000000
-        self.data_test_len = 10000
+        self.data_train_len = 5000
+        self.data_test_len = 5000
         self.data_val_len = 5000
         self.snr_start = 5
         self.snr_stop = 45
@@ -54,7 +54,7 @@ class Params:
         self.rnn_input_size = 5
         self.rnn_hidden_size =50
         self.output_size = 1
-        self.rnn_layer = 10
+        self.rnn_layer = 4
         self.rnn_dropout_ratio = 0
         
         # train params

@@ -139,7 +139,7 @@ def validate(test_loader, val_loader, model, epoch, device):
             datas = datas.to(device)
             dec = evaluation(params.eval_length, datas, model, device)
             decodeword = np.append(decodeword, dec, axis=1)
-            labels = labels.numpy().reshape(1, -1)
+            labels = labels.numpy()[:, :params.eval_length].reshape(-1)
             label_val = np.append(label_val, labels, axis=1)
         ber = (np.sum(np.abs(decodeword - label_val))/label_val.shape[1])
         print('Validation Epoch: {} - ber: {}'.format(epoch+1, ber))
