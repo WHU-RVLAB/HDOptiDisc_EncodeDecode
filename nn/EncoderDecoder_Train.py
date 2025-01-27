@@ -17,6 +17,7 @@ from lib.Utils import evaluation
 from nn.EncoderDecoder_Dataset import PthDataset
 from lib.Params import Params
 from RNN import RNN
+from Transformer import Transformer
 sys.path.pop()
 
 def main():
@@ -40,7 +41,13 @@ def main():
     val_loader = DataLoader(val_dataset, batch_size=params.batch_size_val, shuffle=False, num_workers=4)
 
     # model
-    model = RNN(params, device).to(device)
+    model_file = None
+    if params.model_arch == "rnn":
+        model = RNN(params, device).to(device)
+        model_file = "rnn.pth.tar"
+    elif params.model_arch == "transformer":
+        model = Transformer(params, device).to(device)
+        model_file = "transformer.pth.tar"
     
     # criterion and optimizer
     optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), 
@@ -51,7 +58,8 @@ def main():
     # model dir
     if not os.path.exists(params.model_dir):
         os.makedirs(params.model_dir)
-    model_path = f"{params.model_dir}/{params.model_file}"
+        
+    model_path = f"{params.model_dir}/{model_file}"
 
     # output dir 
     dir_name = '../output/output_' + datetime.datetime.strftime(datetime.datetime.now(), '%Y_%m_%d_%H_%M_%S') + '/'
@@ -78,7 +86,7 @@ def main():
         
         torch.save({
             'epoch': epoch+1,
-            'arch': 'rnn',
+            'arch': params.model_arch,
             'state_dict': model.state_dict(),
             'optimizer': optimizer.state_dict(),
         }, model_path)

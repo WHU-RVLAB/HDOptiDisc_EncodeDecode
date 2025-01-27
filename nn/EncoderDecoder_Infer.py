@@ -16,6 +16,7 @@ from lib.Disk_Read_Channel import Disk_Read_Channel
 from lib.Target_PR_Channel import Target_PR_Channel
 from lib.Params import Params
 from RNN import RNN
+from Transformer import Transformer
 sys.path.pop()
 
 np.random.seed(12345)
@@ -47,10 +48,17 @@ def rnn_sys():
     else:
         device = torch.device("cpu")
 
-    model = RNN(params, device).to(device)
+    # model
+    model_file = None
+    if params.model_arch == "rnn":
+        model = RNN(params, device).to(device)
+        model_file = "rnn.pth.tar"
+    elif params.model_arch == "transformer":
+        model = Transformer(params, device).to(device)
+        model_file = "transformer.pth.tar"
 
     # load model from model_file
-    model_path = f"{params.model_dir}/{params.model_file}"
+    model_path = f"{params.model_dir}/{model_file}"
     if model_path:
         if os.path.isfile(model_path):
             print("=> loading checkpoint '{}'".format(model_path))
