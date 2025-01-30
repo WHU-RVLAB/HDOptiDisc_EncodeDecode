@@ -17,22 +17,20 @@ from lib.Channel_Modulator import RLL_Modulator
 from lib.Channel_Converter import NRZI_Converter
 from lib.Disk_Read_Channel import Disk_Read_Channel
 from lib.Params import Params
-from lib.Utils import get_transformer_dataset, Dictionary
+from lib.Utils import Dictionary
 sys.path.pop()
-        
+
 class PthDataset(Dataset):
     def __init__(self, file_path):
         data = torch.load(file_path, weights_only=False)
-        self.srcs = torch.from_numpy(data['srcs']).int()
-        self.target_inputs = torch.from_numpy(data['target_inputs']).int()
-        self.target_preds = torch.from_numpy(data['target_preds']).int()
-        self.target_masks = torch.from_numpy(data['target_masks']).bool()
+        self.data = torch.from_numpy(data['data']).float()
+        self.label = torch.from_numpy(data['label']).float()
 
     def __len__(self):
-        return len(self.srcs)
+        return len(self.data)
 
     def __getitem__(self, idx):
-        return self.srcs[idx, :], self.target_inputs[idx, :], self.target_preds[idx, :], self.target_masks[idx, :]
+        return self.data[idx, :], self.label[idx, :]
     
 ## Rawdb: generate rawdb for neural network
 class Rawdb(object):
@@ -93,9 +91,12 @@ class Rawdb(object):
                 label[snr_idx*bt_size_snr + signal_idx:snr_idx*bt_size_snr + signal_idx + 1, :] = codeword_truncation
                 data[snr_idx*bt_size_snr + signal_idx:snr_idx*bt_size_snr + signal_idx + 1, :]  = self.Dictionary.signal2idx(equalizer_input_truncation)
         
+        data  = data
+        label = label
+        
         print("generate training/testing data(without sliding window) and label")
         
-        return get_transformer_dataset(data, label, params.transformer_nhead)
+        return data, label
     
     def data_generation_eval(self, prob, snr):
         '''
@@ -129,11 +130,14 @@ class Rawdb(object):
             equalizer_input_truncation = equalizer_input[:, pos:pos+params.eval_length+params.overlap_length]
             
             label[signal_idx:signal_idx + 1, :] = codeword_truncation
-            data[signal_idx:signal_idx + 1, :]  = self.Dictionary.signal2idx(equalizer_input_truncation)
+            data[signal_idx:signal_idx + 1, :]  = equalizer_input_truncation
+        
+        data  = data
+        label = label
         
         print("generate evaluation data (without sliding window) and label")
         
-        return get_transformer_dataset(data, label, params.transformer_nhead)
+        return data, label
     
     def build_rawdb(self, data_dir):
 
@@ -142,10 +146,8 @@ class Rawdb(object):
         
         block_length = self.params.eval_length + self.params.overlap_length
 
-        srcs = np.empty((0, block_length))
-        target_inputs = np.empty((0, block_length + 1))
-        target_preds = np.empty((0, block_length + 1))
-        target_masks = np.empty((0, block_length + 1, block_length + 1))
+        data = np.empty((0, block_length))
+        label = np.empty((0, block_length))
         for _ in range(self.params.train_set_batches):
 
             miu = (0.1 + 0.9)/2
@@ -153,26 +155,19 @@ class Rawdb(object):
             random_p = np.random.normal(miu, sigma)
             random_p = min(max(random_p, 0), 1)
 
-            src, target_input, target_pred, target_mask = self.data_generation(random_p, params.data_train_len)
-            
-            srcs = np.append(srcs, src, axis=0)
-            target_inputs = np.append(target_inputs, target_input, axis=0)
-            target_preds = np.append(target_preds, target_pred, axis=0)
-            target_masks = np.append(target_masks, target_mask, axis=0)
+            data_train, label_train = self.data_generation(random_p, params.data_train_len)
+            data = np.append(data, data_train, axis=0)
+            label = np.append(label, label_train, axis=0)
 
         file_path = f"{data_dir}/transformer_encoderdecoder_train_set.pth"
         torch.save({
-            'srcs': srcs,
-            'target_inputs': target_inputs,
-            'target_preds': target_preds,
-            'target_masks': target_masks
+            'data': data,
+            'label': label
         }, file_path)
         print("generate training dataset\n")
 
-        srcs = np.empty((0, block_length))
-        target_inputs = np.empty((0, block_length + 1))
-        target_preds = np.empty((0, block_length + 1))
-        target_masks = np.empty((0, block_length + 1, block_length + 1))
+        data = np.empty((0, block_length))
+        label = np.empty((0, block_length))
         for _ in range(self.params.test_set_batches):
 
             miu = (0.1 + 0.9)/2
@@ -180,26 +175,19 @@ class Rawdb(object):
             random_p = np.random.normal(miu, sigma)
             random_p = min(max(random_p, 0), 1)
 
-            src, target_input, target_pred, target_mask = self.data_generation(random_p, params.data_test_len)
-            
-            srcs = np.append(srcs, src, axis=0)
-            target_inputs = np.append(target_inputs, target_input, axis=0)
-            target_preds = np.append(target_preds, target_pred, axis=0)
-            target_masks = np.append(target_masks, target_mask, axis=0)
+            data_test, label_test = self.data_generation(random_p, params.data_test_len)
+            data = np.append(data, data_test, axis=0)
+            label = np.append(label, label_test, axis=0)
 
         file_path = f"{data_dir}/transformer_encoderdecoder_test_set.pth"
         torch.save({
-            'srcs': srcs,
-            'target_inputs': target_inputs,
-            'target_preds': target_preds,
-            'target_masks': target_masks
+            'data': data,
+            'label': label
         }, file_path)
         print("generate testing dataset\n")
 
-        srcs = np.empty((0, block_length))
-        target_inputs = np.empty((0, block_length + 1))
-        target_preds = np.empty((0, block_length + 1))
-        target_masks = np.empty((0, block_length + 1, block_length + 1))
+        data = np.empty((0, block_length))
+        label = np.empty((0, block_length))
         for _ in range(self.params.validate_set_batches):
 
             miu = (0.1 + 0.9)/2
@@ -212,19 +200,14 @@ class Rawdb(object):
             random_snr = np.random.normal(miu, sigma)
             random_snr = min(max(random_snr, self.params.snr_start), self.params.snr_stop)
 
-            src, target_input, target_pred, target_mask = self.data_generation_eval(random_p, random_snr)
-            
-            srcs = np.append(srcs, src, axis=0)
-            target_inputs = np.append(target_inputs, target_input, axis=0)
-            target_preds = np.append(target_preds, target_pred, axis=0)
-            target_masks = np.append(target_masks, target_mask, axis=0)
+            data_val, label_val = self.data_generation_eval(random_p, random_snr)
+            data = np.append(data, data_val, axis=0)
+            label = np.append(label, label_val, axis=0)
 
         file_path = f"{data_dir}/transformer_encoderdecoder_validate_set.pth"
         torch.save({
-            'srcs': srcs,
-            'target_inputs': target_inputs,
-            'target_preds': target_preds,
-            'target_masks': target_masks
+            'data': data,
+            'label': label
         }, file_path)
         print("generate validate dataset\n")
 

@@ -15,6 +15,7 @@ sys.path.append(
             os.path.abspath(__file__))))
 from nn.Transformer_EncoderDecoder_Dataset import PthDataset
 from lib.Params import Params
+from lib.Utils import convert2transformer
 from Transformer import Transformer
 sys.path.pop()
 
@@ -101,8 +102,8 @@ def train(train_loader, model:Transformer, optimizer, epoch, device):
     
     train_loss = 0
     bt_cnt = 0
-    for src, target_input, target_pred, target_mask in train_loader:
-        
+    for datas, labels in train_loader:
+        src, target_input, target_pred, target_mask = convert2transformer(datas, labels)
         src = src.to(device)
         target_input = target_input.to(device)
         target_pred = target_pred.to(device)
@@ -137,8 +138,8 @@ def validate(test_loader, val_loader, model:Transformer, epoch, device):
         test_loss = 0
         bt_cnt = 0
         
-        for src, target_input, target_pred, target_mask in test_loader:
-            
+        for datas, labels in test_loader:
+            src, target_input, target_pred, target_mask = convert2transformer(datas, labels)
             src = src.to(device)
             target_input = target_input.to(device)
             target_pred = target_pred.to(device)
@@ -160,8 +161,8 @@ def validate(test_loader, val_loader, model:Transformer, epoch, device):
         decodeword = np.empty((1, 0))
         label_val = np.empty((1, 0))
         
-        for src, target_input, target_pred, target_mask in val_loader:
-            
+        for datas, labels in val_loader:
+            src, target_input, target_pred, target_mask = convert2transformer(datas, labels)
             src = src.to(device)
             target_input = target_input.to(device)
             target_pred = target_pred.to(device)

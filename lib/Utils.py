@@ -146,23 +146,19 @@ def subsequent_mask(size):
 # 2: start
 # 3: stop
 # 68 pad
-def get_transformer_dataset(data, label=None, num_heads=4, start=2, stop=3, pad=68):
-    
-    src = data
+def convert2transformer(data, label=None, num_heads=4, start=2, stop=3, pad=68):
+    src = data.long()
     
     if label is None:
         return src
     
-    target = np.concatenate([np.full((label.shape[0], 1), start, dtype=label.dtype), label, np.full((label.shape[0], 1), stop, dtype=label.dtype)], axis=1)
-    target_input = target[:, :-1].astype(np.uint8)   # decoder的输入（即期望输出除了最后一个token以外的部分)
-    target_pred  = target[:, 1:].astype(np.uint8)   # decoder的期望输出（label基础上再删去句子起始符）
+    target = torch.cat([torch.full((label.shape[0], 1), start, dtype=label.dtype), label, torch.full((label.shape[0], 1), stop, dtype=label.dtype)], dim=1)
+    target_input = label.long() 
+    target_pred = label.long()
     
     bsz, tgt_len = label.shape
-    target_mask  = (np.expand_dims((label != pad), axis=-2)) & subsequent_mask(tgt_len).astype(np.bool)
-    print(target_mask.shape)
-    target_mask = np.repeat(target_mask, num_heads, axis=0)
-    print(target_mask.shape)
-    target_mask = target_mask.reshape(bsz * num_heads, tgt_len, tgt_len)
-    print(target_mask.shape)
+    target_mask  = (label != pad).unsqueeze(-2) & subsequent_mask(tgt_len)
+    target_mask = target_mask.repeat(num_heads, 1, 1)
+    target_mask = target_mask.view(bsz * num_heads, tgt_len, tgt_len).bool()
     
     return src, target_input, target_pred, target_mask
