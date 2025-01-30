@@ -56,7 +56,7 @@ def realistic_sys(params:Params):
     
     # define ber
     num_ber = int((params.snr_stop-params.snr_start)/params.snr_step+1)
-    codeword_len = int(params.data_val_len/rate_constrain)
+    codeword_len = int(params.eval_info_len/rate_constrain)
     ber_channel = np.zeros((1, num_ber))
     ber_info = np.zeros((1, num_ber))
     
@@ -64,7 +64,7 @@ def realistic_sys(params:Params):
     for idx in np.arange(0, num_ber):
         snr = params.snr_start+idx*params.snr_step
         
-        info = np.random.randint(2, size = (1, params.data_val_len + dummy_len))
+        info = np.random.randint(2, size = (1, params.eval_info_len + dummy_len))
         codeword = NRZI_converter.forward_coding(RLL_modulator.forward_coding(info))
         
         rf_signal = disk_read_channel.RF_signal(codeword)

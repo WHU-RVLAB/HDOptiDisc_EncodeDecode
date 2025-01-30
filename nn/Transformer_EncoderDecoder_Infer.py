@@ -9,19 +9,17 @@ sys.path.append(
         os.path.dirname(
             os.path.abspath(__file__))))
 from lib.Const import RLL_state_machine, Target_channel_state_machine
-from lib.Utils import sliding_shape, evaluation
+from lib.Utils import get_transformer_dataset
 from lib.Channel_Modulator import RLL_Modulator
 from lib.Channel_Converter import NRZI_Converter
 from lib.Disk_Read_Channel import Disk_Read_Channel
-from lib.Target_PR_Channel import Target_PR_Channel
 from lib.Params import Params
-from RNN import RNN
 from Transformer import Transformer
 sys.path.pop()
 
 np.random.seed(12345)
 
-def rnn_sys():
+def transformer_sys():
     global params
     params = Params()
     
@@ -50,10 +48,7 @@ def rnn_sys():
 
     # model
     model_file = None
-    if params.model_arch == "rnn":
-        model = RNN(params, device).to(device)
-        model_file = "rnn.pth.tar"
-    elif params.model_arch == "transformer":
+    if params.model_arch == "transformer":
         model = Transformer(params, device).to(device)
         model_file = "transformer.pth.tar"
 
@@ -69,15 +64,15 @@ def rnn_sys():
     
     # define ber
     num_ber = int((params.snr_stop-params.snr_start)/params.snr_step+1)
-    codeword_len = int(params.data_val_len/rate_constrain)
+    codeword_len = int(params.eval_info_len/rate_constrain)
     ber_channel = np.zeros((1, num_ber))
     ber_info = np.zeros((1, num_ber))
     
-    # eval RNN
+    # eval Transformer
     for idx in np.arange(0, num_ber):
         snr = params.snr_start+idx*params.snr_step
         
-        info = np.random.randint(2, size = (1, params.data_val_len + dummy_len))
+        info = np.random.randint(2, size = (1, params.eval_info_len + dummy_len))
         codeword = NRZI_converter.forward_coding(RLL_modulator.forward_coding(info))
         
         rf_signal = disk_read_channel.RF_signal(codeword)
@@ -87,16 +82,19 @@ def rnn_sys():
         decodeword = np.empty((1, 0))
         for pos in range(0, length - params.overlap_length, params.eval_length):
             equalizer_input_truncation = equalizer_input[:, pos:pos+params.eval_length+params.overlap_length]
-            truncation_input = sliding_shape(equalizer_input_truncation, params.input_size)
-            truncation_input = torch.from_numpy(truncation_input).float().to(device)
-            dec_tmp = evaluation(params.eval_length, truncation_input, model, device)
-            decodeword = np.append(decodeword, dec_tmp, axis=1)
+            
+            src = get_transformer_dataset(equalizer_input_truncation)
+        
+            src = torch.from_numpy(src).float().to(device)
+            
+            dec = model.greedy_decode(src, max_len=params.transformer_decode_max_len, start_symbol=2, end_symbol=3)
+            decodeword = np.append(decodeword, dec, axis=1)
 
         print("The SNR is:")
         print(snr)
         ber = (np.count_nonzero(np.abs(codeword[:, 0:codeword_len] - decodeword[:, 0:codeword_len])) / codeword_len)
-        print("The bit error rate (BER) use RNN is:")
+        print(f"The bit error rate (BER) use {params.model_arch} is:")
         print(ber)
 
 if __name__ == '__main__':
-    rnn_sys()
+    transformer_sys()

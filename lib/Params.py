@@ -20,6 +20,9 @@ class Params:
         self.equalizer_train_len = 1000000
         self.snr_train = 20 # add noise while train equalizer
         
+        # detector/decoder params
+        self.eval_info_len = 1000000
+        
         # rf channel params
         self.tap_bd_num = 6
         
@@ -33,9 +36,9 @@ class Params:
         self.drop_len = 60
         
         # dataset params
-        self.train_set_batches = 200
-        self.test_set_batches = 100
-        self.validate_set_batches = 100
+        self.train_set_batches = 10
+        self.test_set_batches = 10
+        self.validate_set_batches = 10
         self.data_train_len = 5000
         self.data_test_len = 5000
         self.data_val_len = 5000
@@ -49,24 +52,27 @@ class Params:
         self.batch_size_val = 600
 
         # general model arch params
-        self.input_size = 6
+        self.input_size = 5
         self.output_size = 1
-        self.model_arch = "rnn"
-        # self.model_arch = "transformer"
+        # self.model_arch = "rnn"
+        self.model_arch = "transformer"
         
         # rnn model arch params
-        self.rnn_input_size = 10
+        self.rnn_input_size = 5
         self.rnn_hidden_size = 50
         self.rnn_layer = 4
         self.rnn_dropout_ratio = 0.1
         
         # transformer model arch params
-        self.transformer_input_size = 16
+        self.transformer_d_model   = 16
+        self.transformer_src_vocab = 128
+        self.transformer_tgt_vocab = 4
         self.transformer_nhead = 4
         self.transformer_hidden_size = 50
         self.transformer_encoder_layers = 4
         self.transformer_decoder_layers = 4
         self.transformer_dropout_ratio = 0.1
+        self.transformer_decode_max_len = 150
         
         # train params
         self.num_epoch = 40

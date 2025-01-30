@@ -103,3 +103,66 @@ def evaluation(eval_length, data_eval, model, device):
         dec = torch.cat((dec, dec_block), 1)
         
     return dec.cpu().numpy()
+
+class Dictionary(object):
+    def __init__(self, bd_di_coef, tap_bd_num):
+        binary_combinations = [list(format(i, f'0{tap_bd_num}b')) for i in range(2 ** tap_bd_num)]
+        convolution_results = []
+
+        for binary in binary_combinations:
+            binary_array = np.array([int(b) for b in binary]) 
+            conv_result = np.sum(binary_array * bd_di_coef) 
+            convolution_results.append(conv_result)
+
+        self.lut = np.array(convolution_results)
+        print("\nrf signal look up table is:")
+        print(self.lut)
+
+    def signal2idx(self, signals):
+        idxs = []
+        for signal in signals[0, :]:
+            differences = np.abs(self.lut - signal)
+            idxs.append(np.argmin(differences) + 4)
+        return np.array(idxs).reshape(1, -1)
+    
+    def idx2signal(self, idxs):
+        signals = []
+        for idx in idxs[0, :]:
+            signals.append(self.lut[idx - 4])
+        return np.array(signals).reshape(1, -1)
+
+def subsequent_mask(size):
+    "Mask out subsequent positions."
+    attn_shape = (1, size, size)
+    subsequent_mask = np.triu(np.ones(attn_shape), k=1).astype('uint8')
+    return subsequent_mask == 0
+
+# default src domain
+# 4-67: info
+
+# default target domain
+# 0-1: info
+
+# 2: start
+# 3: stop
+# 68 pad
+def get_transformer_dataset(data, label=None, num_heads=4, start=2, stop=3, pad=68):
+    
+    src = data
+    
+    if label is None:
+        return src
+    
+    target = np.concatenate([np.full((label.shape[0], 1), start, dtype=label.dtype), label, np.full((label.shape[0], 1), stop, dtype=label.dtype)], axis=1)
+    target_input = target[:, :-1].astype(np.uint8)   # decoder的输入（即期望输出除了最后一个token以外的部分)
+    target_pred  = target[:, 1:].astype(np.uint8)   # decoder的期望输出（label基础上再删去句子起始符）
+    
+    bsz, tgt_len = label.shape
+    target_mask  = (np.expand_dims((label != pad), axis=-2)) & subsequent_mask(tgt_len).astype(np.bool)
+    print(target_mask.shape)
+    target_mask = np.repeat(target_mask, num_heads, axis=0)
+    print(target_mask.shape)
+    target_mask = target_mask.reshape(bsz * num_heads, tgt_len, tgt_len)
+    print(target_mask.shape)
+    
+    return src, target_input, target_pred, target_mask

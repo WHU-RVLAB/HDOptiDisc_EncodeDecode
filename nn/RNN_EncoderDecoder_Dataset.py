@@ -158,12 +158,12 @@ class Rawdb(object):
             data = np.append(data, data_train, axis=0)
             label = np.append(label, label_train, axis=0)
 
-        file_path = f"{data_dir}/train_set.pth"
+        file_path = f"{data_dir}/rnn_encoderdecoder_train_set.pth"
         torch.save({
             'data': data,
             'label': label
         }, file_path)
-        print("\ngenerate training dataset")
+        print("generate training dataset\n")
 
         data = np.empty((0, block_length, self.params.input_size))
         label = np.empty((0, block_length))
@@ -178,12 +178,12 @@ class Rawdb(object):
             data = np.append(data, data_test, axis=0)
             label = np.append(label, label_test, axis=0)
 
-        file_path = f"{data_dir}/test_set.pth"
+        file_path = f"{data_dir}/rnn_encoderdecoder_test_set.pth"
         torch.save({
             'data': data,
             'label': label
         }, file_path)
-        print("\ngenerate testing dataset")
+        print("generate testing dataset\n")
 
         data = np.empty((0, block_length, self.params.input_size))
         label = np.empty((0, block_length))
@@ -203,12 +203,12 @@ class Rawdb(object):
             data = np.append(data, data_val, axis=0)
             label = np.append(label, label_val, axis=0)
 
-        file_path = f"{data_dir}/validate_set.pth"
+        file_path = f"{data_dir}/rnn_encoderdecoder_validate_set.pth"
         torch.save({
             'data': data,
             'label': label
         }, file_path)
-        print("\ngenerate validate dataset")
+        print("generate validate dataset\n")
 
 if __name__ == '__main__':
     params = Params()

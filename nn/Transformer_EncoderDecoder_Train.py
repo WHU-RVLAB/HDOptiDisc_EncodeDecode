@@ -13,10 +13,8 @@ sys.path.append(
     os.path.dirname(
         os.path.dirname(
             os.path.abspath(__file__))))
-from lib.Utils import evaluation
-from nn.EncoderDecoder_Dataset import PthDataset
+from nn.Transformer_EncoderDecoder_Dataset import PthDataset
 from lib.Params import Params
-from RNN import RNN
 from Transformer import Transformer
 sys.path.pop()
 
@@ -31,10 +29,12 @@ def main():
     else:
         device = torch.device("cpu")
         
+    # device = torch.device("cpu")
+        
     # data loader
-    train_dataset = PthDataset(file_path='../data/train_set.pth')
-    test_dataset = PthDataset(file_path='../data/test_set.pth')
-    val_dataset = PthDataset(file_path='../data/validate_set.pth')
+    train_dataset = PthDataset(file_path='../data/transformer_encoderdecoder_train_set.pth')
+    test_dataset = PthDataset(file_path='../data/transformer_encoderdecoder_test_set.pth')
+    val_dataset = PthDataset(file_path='../data/transformer_encoderdecoder_validate_set.pth')
 
     train_loader = DataLoader(train_dataset, batch_size=params.batch_size_train, shuffle=True, num_workers=4)
     test_loader = DataLoader(test_dataset, batch_size=params.batch_size_test, shuffle=False, num_workers=4)
@@ -42,10 +42,7 @@ def main():
 
     # model
     model_file = None
-    if params.model_arch == "rnn":
-        model = RNN(params, device).to(device)
-        model_file = "rnn.pth.tar"
-    elif params.model_arch == "transformer":
+    if params.model_arch == "transformer":
         model = Transformer(params, device).to(device)
         model_file = "transformer.pth.tar"
     
@@ -66,23 +63,29 @@ def main():
     if not os.path.exists(dir_name):
         os.makedirs(dir_name)
     result_path = dir_name + params.result_file
-    result = open(result_path, 'w+')
+    
+    try:
+        result = open(result_path, 'w+')
+        print(f"File {result_path} opened successfully.")
+    except IOError as e:
+        print(f"Error opening file {result_path}: {e}")
 
     # train and validation
     for epoch in range(params.num_epoch):
         
         # train and validate
         train_loss = train(train_loader, model, optimizer, epoch, device)
-        valid_loss, ber = validate(test_loader, val_loader, model, epoch, device)
+        test_loss, ber = validate(test_loader, val_loader, model, epoch, device)
         
         result.write('epoch %d \n' % epoch)
         result.write('Train loss:'+ str(train_loss)+'\n')
-        result.write('Validation loss:'+ str(valid_loss)+'\n')
+        result.write('Test loss:'+ str(test_loss)+'\n')
         if (epoch >= params.eval_start and epoch % params.eval_freq == 0):
             result.write('-----evaluation ber:'+str(ber)+'\n')
         else:
             result.write('-----:no evaluation'+'\n')
         result.write('\n')
+        result.flush()
         
         torch.save({
             'epoch': epoch+1,
@@ -90,20 +93,26 @@ def main():
             'state_dict': model.state_dict(),
             'optimizer': optimizer.state_dict(),
         }, model_path)
-    
-
-def train(train_loader, model, optimizer, epoch, device):
+    result.close()
+        
+def train(train_loader, model:Transformer, optimizer, epoch, device):
     # switch to train mode
     model.train()
     
     train_loss = 0
     bt_cnt = 0
-    for datas, labels in train_loader:
-        datas, labels = datas.to(device), labels.to(device)
+    for src, target_input, target_pred, target_mask in train_loader:
+        
+        src = src.to(device)
+        target_input = target_input.to(device)
+        target_pred = target_pred.to(device)
+        target_mask = target_mask.to(device)
+        
         # network
         optimizer.zero_grad()
-        output = model(datas)
-        loss = loss_func(output, labels, device)
+        
+        output = model.forward(src, target_input, target_mask)
+        loss = loss_func(model.generator(output), target_pred, device)
 
         # compute gradient and do gradient step
         loss.backward()
@@ -119,7 +128,7 @@ def train(train_loader, model, optimizer, epoch, device):
     return avg_loss
             
 
-def validate(test_loader, val_loader, model, epoch, device):
+def validate(test_loader, val_loader, model:Transformer, epoch, device):
     # switch to evaluate mode
     model.eval()
         
@@ -127,10 +136,17 @@ def validate(test_loader, val_loader, model, epoch, device):
     with torch.no_grad():
         test_loss = 0
         bt_cnt = 0
-        for datas, labels in test_loader:
-            datas, labels = datas.to(device), labels.to(device)
-            output = model(datas)
-            loss = loss_func(output, labels, device)
+        
+        for src, target_input, target_pred, target_mask in test_loader:
+            
+            src = src.to(device)
+            target_input = target_input.to(device)
+            target_pred = target_pred.to(device)
+            target_mask = target_mask.to(device)
+            
+            output = model.forward(src, target_input, target_mask)
+            loss = loss_func(model.generator(output), labels, device)
+            
             test_loss += loss.item()
             bt_cnt += 1
         avg_loss = test_loss / bt_cnt
@@ -143,12 +159,19 @@ def validate(test_loader, val_loader, model, epoch, device):
     if (epoch >= params.eval_start) & (epoch % params.eval_freq == 0):
         decodeword = np.empty((1, 0))
         label_val = np.empty((1, 0))
-        for datas, labels in val_loader:
-            datas = datas.to(device)
-            dec = evaluation(params.eval_length, datas, model, device)
+        
+        for src, target_input, target_pred, target_mask in val_loader:
+            
+            src = src.to(device)
+            target_input = target_input.to(device)
+            target_pred = target_pred.to(device)
+            target_mask = target_mask.to(device)
+
+            dec = model.greedy_decode(src, max_len=params.transformer_decode_max_len, start_symbol=2, end_symbol=3)
             decodeword = np.append(decodeword, dec, axis=1)
-            labels = labels.numpy()[:, :params.eval_length].reshape(1, -1)
+            labels = target_pred.numpy()[:, :-1].reshape(1, -1)
             label_val = np.append(label_val, labels, axis=1)
+            
         ber = (np.sum(np.abs(decodeword - label_val))/label_val.shape[1])
         print('Validation Epoch: {} - ber: {}'.format(epoch+1, ber))
     
