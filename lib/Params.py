@@ -71,7 +71,7 @@ class Params:
         self.transformer_hidden_size = 50
         self.transformer_encoder_layers = 4
         self.transformer_decoder_layers = 4
-        self.transformer_dropout_ratio = 0.1
+        self.transformer_dropout_ratio = 0.01
         self.transformer_decode_max_len = 150
         
         # train params

@@ -94,7 +94,6 @@ def main():
         }, model_path)
     result.close()
     
-
 def train(train_loader, model, optimizer, epoch, device):
     # switch to train mode
     model.train()

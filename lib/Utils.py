@@ -131,9 +131,9 @@ class Dictionary(object):
             signals.append(self.lut[idx - 4])
         return np.array(signals).reshape(1, -1)
 
-def subsequent_mask(size):
+def subsequent_mask(bt_size, size):
     "Mask out subsequent positions."
-    attn_shape = (1, size, size)
+    attn_shape = (bt_size, size, size)
     subsequent_mask = np.triu(np.ones(attn_shape), k=1).astype('uint8')
     return subsequent_mask == 0
 
@@ -147,18 +147,19 @@ def subsequent_mask(size):
 # 3: stop
 # 68 pad
 def convert2transformer(data, label=None, num_heads=4, start=2, stop=3, pad=68):
-    src = data.long()
+    src = torch.cat([torch.full((data.shape[0], 1), start, dtype=data.dtype), data, torch.full((data.shape[0], 1), stop, dtype=data.dtype)], dim=1)
+    src = src.long().contiguous()
     
     if label is None:
         return src
     
     target = torch.cat([torch.full((label.shape[0], 1), start, dtype=label.dtype), label, torch.full((label.shape[0], 1), stop, dtype=label.dtype)], dim=1)
-    target_input = label.long() 
-    target_pred = label.long()
+    target_input = target[:, :-1].long().contiguous()
+    target_pred = target[:, 1:].long().contiguous()
     
-    bsz, tgt_len = label.shape
-    target_mask  = (label != pad).unsqueeze(-2) & subsequent_mask(tgt_len)
+    bsz, tgt_len = target_input.shape
+    target_mask  = (target_input != pad).unsqueeze(-2) & subsequent_mask(bsz, tgt_len)
     target_mask = target_mask.repeat(num_heads, 1, 1)
-    target_mask = target_mask.view(bsz * num_heads, tgt_len, tgt_len).bool()
+    target_mask = target_mask.view(bsz * num_heads, tgt_len, tgt_len).bool().contiguous()
     
     return src, target_input, target_pred, target_mask

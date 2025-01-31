@@ -130,7 +130,7 @@ class Rawdb(object):
             equalizer_input_truncation = equalizer_input[:, pos:pos+params.eval_length+params.overlap_length]
             
             label[signal_idx:signal_idx + 1, :] = codeword_truncation
-            data[signal_idx:signal_idx + 1, :]  = equalizer_input_truncation
+            data[signal_idx:signal_idx + 1, :]  = self.Dictionary.signal2idx(equalizer_input_truncation)
         
         data  = data
         label = label

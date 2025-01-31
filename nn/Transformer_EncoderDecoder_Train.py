@@ -13,11 +13,28 @@ sys.path.append(
     os.path.dirname(
         os.path.dirname(
             os.path.abspath(__file__))))
+from lib.Utils import convert2transformer
 from nn.Transformer_EncoderDecoder_Dataset import PthDataset
 from lib.Params import Params
-from lib.Utils import convert2transformer
 from Transformer import Transformer
 sys.path.pop()
+
+class LabelSmoothing(nn.Module):
+    "Implement label smoothing."
+    def __init__(self, size, smoothing=0.0):
+        super(LabelSmoothing, self).__init__()
+        self.criterion = nn.KLDivLoss(reduction='sum')
+        self.confidence = 1.0 - smoothing
+        self.smoothing = smoothing
+        self.size = size
+        self.true_dist = None
+        
+    def forward(self, x, target):
+        assert x.size(2) == self.size
+        true_dist = x.data.clone()
+        true_dist.fill_(self.smoothing / (self.size - 2))
+        true_dist.scatter_(2, target.data.unsqueeze(2), self.confidence)
+        return self.criterion(x, true_dist)/(x.size(0)*x.size(1))
 
 def main():
     global params
@@ -29,8 +46,6 @@ def main():
         device = torch.device("cuda")
     else:
         device = torch.device("cpu")
-        
-    # device = torch.device("cpu")
         
     # data loader
     train_dataset = PthDataset(file_path='../data/transformer_encoderdecoder_train_set.pth')
@@ -46,12 +61,15 @@ def main():
     if params.model_arch == "transformer":
         model = Transformer(params, device).to(device)
         model_file = "transformer.pth.tar"
-    
+        
     # criterion and optimizer
     optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), 
                                  lr=params.learning_rate, 
                                  eps=1e-08, 
                                  weight_decay=params.weight_decay)
+    
+    global loss_func
+    loss_func = LabelSmoothing(size=params.transformer_tgt_vocab, smoothing=0.0)
     
     # model dir
     if not os.path.exists(params.model_dir):
@@ -103,7 +121,7 @@ def train(train_loader, model:Transformer, optimizer, epoch, device):
     train_loss = 0
     bt_cnt = 0
     for datas, labels in train_loader:
-        src, target_input, target_pred, target_mask = convert2transformer(datas, labels)
+        src, target_input, target_pred, target_mask = convert2transformer(datas, labels, params.transformer_nhead)
         src = src.to(device)
         target_input = target_input.to(device)
         target_pred = target_pred.to(device)
@@ -113,9 +131,8 @@ def train(train_loader, model:Transformer, optimizer, epoch, device):
         optimizer.zero_grad()
         
         output = model.forward(src, target_input, target_mask)
-        loss = loss_func(model.generator(output), target_pred, device)
+        loss = loss_func(model.generator(output), target_pred)
 
-        # compute gradient and do gradient step
         loss.backward()
         optimizer.step()
         train_loss += loss.item()
@@ -130,56 +147,50 @@ def train(train_loader, model:Transformer, optimizer, epoch, device):
             
 
 def validate(test_loader, val_loader, model:Transformer, epoch, device):
-    # switch to evaluate mode
-    model.eval()
+    # switch to evaluate mode, but looks like a bug in torch
+    # model.eval()
         
     # network
     with torch.no_grad():
         test_loss = 0
         bt_cnt = 0
-        
         for datas, labels in test_loader:
-            src, target_input, target_pred, target_mask = convert2transformer(datas, labels)
+            src, target_input, target_pred, target_mask = convert2transformer(datas, labels, params.transformer_nhead)
             src = src.to(device)
             target_input = target_input.to(device)
             target_pred = target_pred.to(device)
             target_mask = target_mask.to(device)
             
             output = model.forward(src, target_input, target_mask)
-            loss = loss_func(model.generator(output), labels, device)
-            
+            loss = loss_func(model.generator(output), target_pred)
             test_loss += loss.item()
             bt_cnt += 1
         avg_loss = test_loss / bt_cnt
     
-    if epoch % params.print_freq_ep == 0:
-        print('Test Epoch: {} Avg Loss: {:.6f}'.format(epoch+1, avg_loss))
-    
-    # evaluation
-    ber = 1.0
-    if (epoch >= params.eval_start) & (epoch % params.eval_freq == 0):
-        decodeword = np.empty((1, 0))
-        label_val = np.empty((1, 0))
+        if epoch % params.print_freq_ep == 0:
+            print('Test Epoch: {} Avg Loss: {:.6f}'.format(epoch+1, avg_loss))
         
-        for datas, labels in val_loader:
-            src, target_input, target_pred, target_mask = convert2transformer(datas, labels)
-            src = src.to(device)
-            target_input = target_input.to(device)
-            target_pred = target_pred.to(device)
-            target_mask = target_mask.to(device)
+        # evaluation
+        ber = 1.0
+        if (epoch >= params.eval_start) & (epoch % params.eval_freq == 0):
+            decodeword = np.empty((1, 0))
+            label_val = np.empty((1, 0))
+            for datas, labels in val_loader:
+                src, target_input, target_pred, target_mask = convert2transformer(datas, labels, params.transformer_nhead)
+                src = src.to(device)
+                target_input = target_input.to(device)
+                target_pred = target_pred.to(device)
+                target_mask = target_mask.to(device)
 
-            dec = model.greedy_decode(src, max_len=params.transformer_decode_max_len, start_symbol=2, end_symbol=3)
-            decodeword = np.append(decodeword, dec, axis=1)
-            labels = target_pred.numpy()[:, :-1].reshape(1, -1)
-            label_val = np.append(label_val, labels, axis=1)
-            
-        ber = (np.sum(np.abs(decodeword - label_val))/label_val.shape[1])
-        print('Validation Epoch: {} - ber: {}'.format(epoch+1, ber))
+                dec = model.greedy_decode(src, target_pred, max_len=params.transformer_decode_max_len, start_symbol=2, end_symbol=3)
+                dec = dec.numpy()[:, :params.eval_length].reshape(1, -1)
+                decodeword = np.append(decodeword, dec, axis=1)
+                labels = labels.numpy()[:, :params.eval_length].reshape(1, -1)
+                label_val = np.append(label_val, labels, axis=1)
+            ber = (np.sum(np.abs(decodeword - label_val))/label_val.shape[1])
+            print('Validation Epoch: {} - ber: {}'.format(epoch+1, ber))
     
     return avg_loss, ber
-
-def loss_func(output, label, device):
-    return F.binary_cross_entropy(output, label).to(device)
         
 if __name__ == '__main__':
     main()
