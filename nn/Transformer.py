@@ -68,8 +68,8 @@ class Transformer(nn.Module):
                                     
         self.encoder = transformer.encoder
         self.decoder = transformer.decoder
-        self.src_embed = nn.Sequential(nn.Embedding(params.transformer_src_vocab, params.transformer_d_model), c(position))    # input embedding module(input embedding + positional encode)
-        self.tgt_embed = nn.Sequential(nn.Embedding(params.transformer_tgt_vocab, params.transformer_d_model), c(position))    # ouput embedding module
+        # self.src_position = c(position)
+        # self.tgt_position = c(position)
         self.generator = Generator(params.transformer_d_model, params.transformer_tgt_vocab)   # output generation module
         
     def forward(self, src, tgt, tgt_mask):
@@ -79,27 +79,29 @@ class Transformer(nn.Module):
         return res
 
     def encode(self, src):
-        src_embedds = self.src_embed(src)
+        # src_embedds = self.src_position(src)
+        src_embedds = src
         return self.encoder(src_embedds)
 
     def decode(self, memory, tgt, tgt_mask):
-        target_embedds = self.tgt_embed(tgt)
+        # target_embedds = self.tgt_position(tgt)
+        target_embedds = tgt
         return self.decoder(target_embedds, memory, tgt_mask)
 
     def greedy_decode(self, src, target_pred, max_len, start_symbol, end_symbol):
         memory = self.encode(src)
-        target_input_origin = torch.ones(src.shape[0], 1).fill_(start_symbol).type_as(src.data).to(src.device)
+        target_input_origin = torch.ones(src.shape[0], 1, 1).fill_(start_symbol).float().contiguous().to(src.device)
         target_input = target_input_origin
         
         for i in range(max_len-1):
-            target_mask = torch.from_numpy(subsequent_mask(src.shape[0], target_input.size(1))).to(src.device)
+            target_mask = subsequent_mask(src.shape[0], target_input.size(1)).to(src.device)
             target_mask = target_mask.repeat(self.params.transformer_nhead, 1, 1)
             
             out = self.decode(memory, target_input, target_mask)
             prob = self.generator(out)
             _, next_word = torch.max(prob, dim = 2)
             
-            target_input = torch.cat([target_input_origin, next_word[:, :]], dim=1)
+            target_input = torch.cat([target_input_origin, next_word[:, :].unsqueeze(-1)], dim=1)
 
-        target_input = target_input[:, 1:]
-        return target_input.cpu()
+        target_input = target_input[:, 1:, :]
+        return target_input.cpu().int()

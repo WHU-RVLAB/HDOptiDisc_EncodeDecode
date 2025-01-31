@@ -64,14 +64,14 @@ class Params:
         self.rnn_dropout_ratio = 0.1
         
         # transformer model arch params
-        self.transformer_d_model   = 16
-        self.transformer_src_vocab = 128
-        self.transformer_tgt_vocab = 4
-        self.transformer_nhead = 4
+        self.transformer_d_model   = 1
+        self.transformer_src_vocab = 64
+        self.transformer_tgt_vocab = 2
+        self.transformer_nhead = 1
         self.transformer_hidden_size = 50
         self.transformer_encoder_layers = 4
         self.transformer_decoder_layers = 4
-        self.transformer_dropout_ratio = 0.01
+        self.transformer_dropout_ratio = 0.0
         self.transformer_decode_max_len = 150
         
         # train params

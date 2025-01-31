@@ -32,8 +32,8 @@ class LabelSmoothing(nn.Module):
     def forward(self, x, target):
         assert x.size(2) == self.size
         true_dist = x.data.clone()
-        true_dist.fill_(self.smoothing / (self.size - 2))
-        true_dist.scatter_(2, target.data.unsqueeze(2), self.confidence)
+        true_dist.fill_(self.smoothing)
+        true_dist.scatter_(2, target.data.long(), self.confidence)
         return self.criterion(x, true_dist)/(x.size(0)*x.size(1))
 
 def main():
@@ -121,11 +121,7 @@ def train(train_loader, model:Transformer, optimizer, epoch, device):
     train_loss = 0
     bt_cnt = 0
     for datas, labels in train_loader:
-        src, target_input, target_pred, target_mask = convert2transformer(datas, labels, params.transformer_nhead)
-        src = src.to(device)
-        target_input = target_input.to(device)
-        target_pred = target_pred.to(device)
-        target_mask = target_mask.to(device)
+        src, target_input, target_pred, target_mask = convert2transformer(datas, labels, params.transformer_nhead, device)
         
         # network
         optimizer.zero_grad()
@@ -155,11 +151,7 @@ def validate(test_loader, val_loader, model:Transformer, epoch, device):
         test_loss = 0
         bt_cnt = 0
         for datas, labels in test_loader:
-            src, target_input, target_pred, target_mask = convert2transformer(datas, labels, params.transformer_nhead)
-            src = src.to(device)
-            target_input = target_input.to(device)
-            target_pred = target_pred.to(device)
-            target_mask = target_mask.to(device)
+            src, target_input, target_pred, target_mask = convert2transformer(datas, labels, params.transformer_nhead, device)
             
             output = model.forward(src, target_input, target_mask)
             loss = loss_func(model.generator(output), target_pred)
@@ -176,13 +168,9 @@ def validate(test_loader, val_loader, model:Transformer, epoch, device):
             decodeword = np.empty((1, 0))
             label_val = np.empty((1, 0))
             for datas, labels in val_loader:
-                src, target_input, target_pred, target_mask = convert2transformer(datas, labels, params.transformer_nhead)
-                src = src.to(device)
-                target_input = target_input.to(device)
-                target_pred = target_pred.to(device)
-                target_mask = target_mask.to(device)
+                src, target_input, target_pred, target_mask = convert2transformer(datas, labels, params.transformer_nhead, device)
 
-                dec = model.greedy_decode(src, target_pred, max_len=params.transformer_decode_max_len, start_symbol=2, end_symbol=3)
+                dec = model.greedy_decode(src, target_pred, max_len=params.transformer_decode_max_len, start_symbol=0, end_symbol=1)
                 dec = dec.numpy()[:, :params.eval_length].reshape(1, -1)
                 decodeword = np.append(decodeword, dec, axis=1)
                 labels = labels.numpy()[:, :params.eval_length].reshape(1, -1)
