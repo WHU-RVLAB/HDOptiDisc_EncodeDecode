@@ -21,7 +21,7 @@ class Params:
         self.snr_train = 20 # add noise while train equalizer
         
         # detector/decoder params
-        self.eval_info_len = 5000
+        self.eval_info_len = 1000000
         
         # rf channel params
         self.tap_bd_num = 6
@@ -36,9 +36,9 @@ class Params:
         self.drop_len = 60
         
         # dataset params
-        self.train_set_batches = 10
-        self.test_set_batches = 10
-        self.validate_set_batches = 10
+        self.train_set_batches = 200
+        self.test_set_batches = 100
+        self.validate_set_batches = 100
         self.data_train_len = 5000
         self.data_test_len = 5000
         self.data_val_len = 5000
@@ -55,8 +55,8 @@ class Params:
         self.inputx_size = 5
         self.inputy_size = 1
         self.output_size = 1
-        # self.model_arch = "rnn"
-        self.model_arch = "transformer"
+        self.model_arch = "rnn"
+        # self.model_arch = "transformer"
         
         # rnn model arch params
         self.rnn_d_model = 5
