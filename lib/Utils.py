@@ -93,66 +93,28 @@ def sliding_shape(x, input_size):
     
     return y.astype(np.float32)
 
-def evaluation(eval_length, data_eval, model, device):
-    dec = torch.zeros((1, 0)).float().to(device)
-    for idx in range(data_eval.shape[0]):
-        truncation_in = data_eval[idx:idx + 1, : , :]
-        with torch.no_grad():
-            dec_block = codeword_threshold(model(truncation_in)[:, :eval_length])
-        # concatenate the decoding codeword
-        dec = torch.cat((dec, dec_block), 1)
-        
-    return dec.cpu().numpy()
-
-class Dictionary(object):
-    def __init__(self, bd_di_coef, tap_bd_num):
-        binary_combinations = [list(format(i, f'0{tap_bd_num}b')) for i in range(2 ** tap_bd_num)]
-        convolution_results = []
-
-        for binary in binary_combinations:
-            binary_array = np.array([int(b) for b in binary]) 
-            conv_result = np.sum(binary_array * bd_di_coef) 
-            convolution_results.append(conv_result)
-
-        self.lut = np.array(convolution_results)
-        print("\nrf signal look up table is:")
-        print(self.lut)
-
-    def signal2idx(self, signals):
-        idxs = []
-        for signal in signals[0, :]:
-            differences = np.abs(self.lut - signal)
-            idxs.append(np.argmin(differences))
-        return np.array(idxs).reshape(1, -1)
-    
-    def idx2signal(self, idxs):
-        signals = []
-        for idx in idxs[0, :]:
-            signals.append(self.lut[idx])
-        return np.array(signals).reshape(1, -1)
-
 def subsequent_mask(bt_size, size):
     "Mask out subsequent positions."
     attn_shape = (bt_size, size, size)
     subsequent_mask = np.triu(np.ones(attn_shape), k=1).astype('uint8')
-    return torch.from_numpy(subsequent_mask == 0).bool().contiguous()
+    return torch.from_numpy(subsequent_mask == 0)
 
-# default src domain
-# 0-63: info
-# default target domain
-# 0-1: info
-def convert2transformer(data, label=None, num_heads=4, device = None):
-    src = data.unsqueeze(-1).float().contiguous().to(device)
+@staticmethod
+def convert2transformer(data, label, num_heads=4, start=2, device = None):
+    src = data.to(device)
+    target = label.to(device)
+    target = torch.cat([torch.full((target.shape[0], 1), start, device=target.device, dtype=target.dtype), target], dim=1)
     
-    if label is None:
-        return src
+    if label.shape[1] == 0:
+        target_input = target.unsqueeze(-1).contiguous()
+        target_pred  = target.contiguous()
+    else:
+        target_input = target[:, :-1].unsqueeze(-1).contiguous()
+        target_pred  = target[:, 1:].contiguous()
     
-    target = label.unsqueeze(-1).float().contiguous().to(device)
-    target_input = target
-    target_pred  = target
     
-    bsz, tgt_len, _ =  target_input.shape
-    target_mask  = torch.ones_like(target_input.int()) & subsequent_mask(bsz, tgt_len).to(device)
+    bsz, tgt_len, _ = target_input.shape
+    target_mask  = subsequent_mask(bsz, tgt_len)
     target_mask = target_mask.repeat(num_heads, 1, 1)
     target_mask = target_mask.view(bsz * num_heads, tgt_len, tgt_len).float().contiguous().to(device)
     

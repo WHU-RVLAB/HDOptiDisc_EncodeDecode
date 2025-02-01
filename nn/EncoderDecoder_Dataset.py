@@ -90,7 +90,7 @@ class Rawdb(object):
                 label[snr_idx*bt_size_snr + signal_idx:snr_idx*bt_size_snr + signal_idx + 1, :] = codeword_truncation
                 data[snr_idx*bt_size_snr + signal_idx:snr_idx*bt_size_snr + signal_idx + 1, :]  = equalizer_input_truncation
         
-        data = sliding_shape(data, self.params.input_size)
+        data = sliding_shape(data, self.params.inputx_size)
         label = label
         
         print("generate training/testing data(with sliding window) and label")
@@ -131,7 +131,7 @@ class Rawdb(object):
             label[signal_idx:signal_idx + 1, :] = codeword_truncation
             data[signal_idx:signal_idx + 1, :]  = equalizer_input_truncation
         
-        data = sliding_shape(data, self.params.input_size)
+        data = sliding_shape(data, self.params.inputx_size)
         label = label
         
         print("generate evaluation data (with sliding window) and label")
@@ -145,7 +145,7 @@ class Rawdb(object):
         
         block_length = self.params.eval_length + self.params.overlap_length
 
-        data = np.empty((0, block_length, self.params.input_size))
+        data = np.empty((0, block_length, self.params.inputx_size))
         label = np.empty((0, block_length))
         for _ in range(self.params.train_set_batches):
 
@@ -158,14 +158,14 @@ class Rawdb(object):
             data = np.append(data, data_train, axis=0)
             label = np.append(label, label_train, axis=0)
 
-        file_path = f"{data_dir}/rnn_encoderdecoder_train_set.pth"
+        file_path = f"{data_dir}/encoderdecoder_train_set.pth"
         torch.save({
             'data': data,
             'label': label
         }, file_path)
         print("generate training dataset\n")
 
-        data = np.empty((0, block_length, self.params.input_size))
+        data = np.empty((0, block_length, self.params.inputx_size))
         label = np.empty((0, block_length))
         for _ in range(self.params.test_set_batches):
 
@@ -178,14 +178,14 @@ class Rawdb(object):
             data = np.append(data, data_test, axis=0)
             label = np.append(label, label_test, axis=0)
 
-        file_path = f"{data_dir}/rnn_encoderdecoder_test_set.pth"
+        file_path = f"{data_dir}/encoderdecoder_test_set.pth"
         torch.save({
             'data': data,
             'label': label
         }, file_path)
         print("generate testing dataset\n")
 
-        data = np.empty((0, block_length, self.params.input_size))
+        data = np.empty((0, block_length, self.params.inputx_size))
         label = np.empty((0, block_length))
         for _ in range(self.params.validate_set_batches):
 
@@ -203,7 +203,7 @@ class Rawdb(object):
             data = np.append(data, data_val, axis=0)
             label = np.append(label, label_val, axis=0)
 
-        file_path = f"{data_dir}/rnn_encoderdecoder_validate_set.pth"
+        file_path = f"{data_dir}/encoderdecoder_validate_set.pth"
         torch.save({
             'data': data,
             'label': label

@@ -2,60 +2,24 @@ import sys
 import os
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-import math
-import copy
 
 sys.path.append(
     os.path.dirname(
         os.path.dirname(
             os.path.abspath(__file__))))
 from lib.Params import Params
-from lib.Utils import subsequent_mask
+from lib.Utils import convert2transformer, codeword_threshold
 sys.path.pop()
-
-# Positional Encoding
-class PositionalEncoding(nn.Module):
-    "Implement the PE function."
-    def __init__(self, sentence_len, d_model, dropout):
-        super(PositionalEncoding, self).__init__()
-        self.dropout = nn.Dropout(p=dropout)
-        
-        # Compute the positional encodings once in log space.
-        pe = torch.zeros(1, sentence_len, d_model)
-        position = torch.arange(0, sentence_len).unsqueeze(1)
-        div_term = torch.exp((torch.arange(0, d_model, 2) / d_model) * (-math.log(10000.0)))
-        pe[:, :, 0::2] = torch.sin(position * div_term)
-        pe[:, :, 1::2] = torch.cos(position * div_term)
-        self.pe = pe
-        
-    def forward(self, x):
-        x = x + self.pe[:, :x.size(1), :].to(x.device)
-        return self.dropout(x)
-        
-class Generator(nn.Module):
-    "Define standard linear + softmax generation step."
-    def __init__(self, d_model, vocab):
-        super(Generator, self).__init__()
-        self.proj = nn.Linear(d_model, vocab)
-
-    def forward(self, x):
-        return F.log_softmax(self.proj(x), dim=-1)
     
-# Model Architecture
 class Transformer(nn.Module):
-    """
-    A standard Encoder-Decoder architecture. 
-    Base for this and many other models.
-    """
     def __init__(self, params:Params, device):
         super(Transformer, self).__init__()
         self.params = params
         self.device = device
         self.time_step = params.eval_length + params.overlap_length
         self.fc_length = params.eval_length + params.overlap_length
-        c = copy.deepcopy
-        position = PositionalEncoding(params.transformer_decode_max_len, params.transformer_d_model, params.transformer_dropout_ratio)
+        self.decx_input = torch.nn.Linear(params.inputx_size, params.transformer_d_model)
+        self.decy_input = torch.nn.Linear(params.inputy_size, params.transformer_d_model)
         transformer = torch.nn.Transformer(
                                     d_model=params.transformer_d_model, 
                                     nhead=params.transformer_nhead, 
@@ -68,40 +32,38 @@ class Transformer(nn.Module):
                                     
         self.encoder = transformer.encoder
         self.decoder = transformer.decoder
-        # self.src_position = c(position)
-        # self.tgt_position = c(position)
-        self.generator = Generator(params.transformer_d_model, params.transformer_tgt_vocab)   # output generation module
+        self.dec_output = torch.nn.Linear(params.transformer_d_model, params.output_size)
         
-    def forward(self, src, tgt, tgt_mask):
-        "Take in and process masked src and target sequences."
-        memory = self.encode(src)
-        res = self.decode(memory, tgt, tgt_mask)
-        return res
-
-    def encode(self, src):
-        # src_embedds = self.src_position(src)
-        src_embedds = src
-        return self.encoder(src_embedds)
-
-    def decode(self, memory, tgt, tgt_mask):
-        # target_embedds = self.tgt_position(tgt)
-        target_embedds = tgt
-        return self.decoder(target_embedds, memory, tgt_mask)
-
-    def greedy_decode(self, src, target_pred, max_len, start_symbol, end_symbol):
-        memory = self.encode(src)
-        target_input_origin = torch.ones(src.shape[0], 1, 1).fill_(start_symbol).float().contiguous().to(src.device)
-        target_input = target_input_origin
+    def forward(self, x, y, y_mask):
+        x = self.decx_input(x)
+        memory = self.encoder(x)
         
-        for i in range(max_len-1):
-            target_mask = subsequent_mask(src.shape[0], target_input.size(1)).to(src.device)
-            target_mask = target_mask.repeat(self.params.transformer_nhead, 1, 1)
-            
-            out = self.decode(memory, target_input, target_mask)
-            prob = self.generator(out)
-            _, next_word = torch.max(prob, dim = 2)
-            
-            target_input = torch.cat([target_input_origin, next_word[:, :].unsqueeze(-1)], dim=1)
+        y = self.decy_input(y)
+        y = self.decoder(y, memory, tgt_mask = y_mask)
 
-        target_input = target_input[:, 1:, :]
-        return target_input.cpu().int()
+        dec = torch.sigmoid(self.dec_output(y))
+        
+        return torch.squeeze(dec, 2)
+
+    def decode(self, eval_length, data_eval, device):
+        dec = torch.zeros((1, 0)).float().to(device)
+        for idx in range(data_eval.shape[0]):
+            x = data_eval[idx:idx + 1, : , :]
+            
+            y_origin = torch.zeros((x.shape[0], 0)).float().to(device)
+            y = y_origin
+            
+            for _ in range(eval_length):
+                src, target_input, target_pred, target_mask = \
+                    convert2transformer(x, y, self.params.transformer_nhead, start=2, device=device)
+                
+                with torch.no_grad():
+                    y_pred = codeword_threshold(self.forward(src, target_input, target_mask)[:, :eval_length])
+                
+                y = torch.cat([y, y_pred[:, -1:]], dim=1)
+            
+            # concatenate the decoding codeword
+            dec_block = y
+            dec = torch.cat((dec, dec_block), 1)
+            
+        return dec.cpu().numpy()
