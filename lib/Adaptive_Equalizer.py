@@ -80,7 +80,7 @@ if __name__ == '__main__':
     pr_signal = target_pr_channel.target_channel(codeword)
     
     pr_adaptive_equalizer = Adaptive_Equalizer(        
-        equalizer_input  = equalizer_input,
+        equalizer_input  = rf_signal,
         reference_signal = pr_signal,
         taps_num = 15,
         mu = 0.01
@@ -166,7 +166,12 @@ if __name__ == '__main__':
     codeword = NRZI_converter.forward_coding(RLL_modulator.forward_coding(info))
     
     rf_signal = disk_read_channel.RF_signal(codeword)
-    random_snr = np.random.uniform(params.snr_start, params.snr_stop)
+    
+    miu = (params.snr_start + params.snr_stop)/2
+    sigma = (params.snr_stop - miu)/2
+    random_snr = np.random.normal(miu, sigma)
+    random_snr = min(max(random_snr, params.snr_start), params.snr_stop)
+    
     equalizer_input = disk_read_channel.awgn(rf_signal, random_snr)
     pr_signal = target_pr_channel.target_channel(codeword)
     
