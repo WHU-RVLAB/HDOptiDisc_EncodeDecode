@@ -10,6 +10,7 @@ np.set_printoptions(threshold=sys.maxsize)
 
 from BaseModel import BaseModel
 from MLP import MLP
+from CNN import CNN
 from RNN import RNN
 from Transformer import Transformer
 from Classifier_Dataset import PthDataset
@@ -45,6 +46,9 @@ def main():
     if params.model_arch == "mlp":
         model = MLP(params, device).to(device)
         model_file = "mlp.pth.tar"
+    elif params.model_arch == "cnn":
+        model = CNN(params, device).to(device)
+        model_file = "cnn.pth.tar"
     elif params.model_arch == "rnn":
         model = RNN(params, device).to(device)
         model_file = "rnn.pth.tar"
