@@ -1,6 +1,7 @@
 import sys
 import os
 import torch
+import torch.nn as nn
 
 from BaseModel import BaseModel
 sys.path.append(
@@ -13,8 +14,8 @@ sys.path.pop()
 class Transformer(BaseModel):
     def __init__(self, params:Params, device):
         super(Transformer, self).__init__(params, device)
-        self.dec_input = torch.nn.Linear(params.input_size, params.transformer_d_model)
-        transformer = torch.nn.Transformer(
+        self.dec_input = nn.Linear(params.input_size, params.transformer_d_model)
+        transformer = nn.Transformer(
                                     d_model=params.transformer_d_model, 
                                     nhead=params.transformer_nhead, 
                                     dim_feedforward=params.transformer_hidden_size,
@@ -24,7 +25,7 @@ class Transformer(BaseModel):
                                     dropout=params.transformer_dropout_ratio)
                                     
         self.encoder = transformer.encoder
-        self.dec_output = torch.nn.Linear(params.transformer_d_model, params.output_size)
+        self.dec_output = nn.Linear(params.transformer_d_model, params.output_size)
         
     def forward(self, x):        
         x = self.dec_input(x)

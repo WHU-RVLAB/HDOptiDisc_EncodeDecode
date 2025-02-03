@@ -1,6 +1,7 @@
 import sys
 import os
 import torch
+import torch.nn as nn
 
 from BaseModel import BaseModel
 sys.path.append(
@@ -13,8 +14,8 @@ sys.path.pop()
 class RNN(BaseModel):
     def __init__(self, params:Params, device):
         super(RNN, self).__init__(params, device)
-        self.dec_input = torch.nn.Linear(params.input_size, params.rnn_d_model)
-        self.dec_rnn = torch.nn.GRU(params.rnn_d_model, 
+        self.dec_input = nn.Linear(params.input_size, params.rnn_d_model)
+        self.dec_rnn = nn.GRU(params.rnn_d_model, 
                                     params.rnn_hidden_size, 
                                     params.rnn_layer, 
                                     bias=True, 
@@ -22,7 +23,7 @@ class RNN(BaseModel):
                                     dropout=params.rnn_dropout_ratio, 
                                     bidirectional=True)
         
-        self.dec_output = torch.nn.Linear(2*params.rnn_hidden_size, params.output_size)
+        self.dec_output = nn.Linear(2*params.rnn_hidden_size, params.output_size)
         
     def forward(self, x):        
         x = self.dec_input(x)

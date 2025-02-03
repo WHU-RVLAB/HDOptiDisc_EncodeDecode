@@ -4,6 +4,7 @@ import sys
 import os
 np.set_printoptions(threshold=sys.maxsize)
 
+from MLP import MLP
 from RNN import RNN
 from Transformer import Transformer
 sys.path.append(
@@ -49,7 +50,10 @@ def nn_sys():
 
     # model
     model_file = None
-    if params.model_arch == "rnn":
+    if params.model_arch == "mlp":
+        model = MLP(params, device).to(device)
+        model_file = "mlp.pth.tar"
+    elif params.model_arch == "rnn":
         model = RNN(params, device).to(device)
         model_file = "rnn.pth.tar"
     elif params.model_arch == "transformer":

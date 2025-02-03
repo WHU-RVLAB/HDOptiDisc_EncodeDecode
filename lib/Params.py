@@ -51,8 +51,14 @@ class Params:
         # general model arch params
         self.input_size = 6 # dimension of a feature should always equal to length of channel memory length
         self.output_size = 1 # model determine whether the current bit is 0 or 1
+        # self.model_arch = "mlp"
         self.model_arch = "rnn"
         # self.model_arch = "transformer"
+        
+        # mlp model arch params
+        self.mlp_d_model = 6
+        self.mlp_hidden_size = 50
+        self.mlp_dropout_ratio = 0.1
         
         # rnn model arch params
         self.rnn_d_model = 6
