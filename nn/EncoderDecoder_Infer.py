@@ -86,7 +86,7 @@ def nn_sys():
         decodeword = np.empty((1, 0))
         for pos in range(0, length - params.overlap_length, params.eval_length):
             equalizer_input_truncation = equalizer_input[:, pos:pos+params.eval_length+params.overlap_length]
-            truncation_input = sliding_shape(equalizer_input_truncation, params.inputx_size)
+            truncation_input = sliding_shape(equalizer_input_truncation, params.input_size)
             truncation_input = torch.from_numpy(truncation_input).float().to(device)
             dec_tmp = model.decode(params.eval_length, truncation_input, device)
             decodeword = np.append(decodeword, dec_tmp, axis=1)

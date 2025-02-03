@@ -75,6 +75,10 @@ def realistic_sys(params:Params):
         length = equalizer_input.shape[1]
         detectword = np.empty((1, 0))
         detectword_pr = np.empty((1, 0))
+        
+        # start from a known seq
+        known_seq = codeword[:, :params.eval_length]
+        detectword = np.append(detectword, known_seq, axis=1)
         for pos in range(0, length - params.overlap_length, params.eval_length):
             
             codeword_truncation = codeword[:, pos:pos+params.eval_length+params.overlap_length]
@@ -85,6 +89,7 @@ def realistic_sys(params:Params):
             
             pr_adaptive_equalizer.equalizer_input = equalizer_input_truncation
             detector_input = pr_adaptive_equalizer.equalized_signal()
+            detector_input = detector_input[:, params.eval_length:]
             
             dec_tmp, metric_next = viterbi_detector.vit_dec(detector_input, ini_metric)
             ini_metric = metric_next

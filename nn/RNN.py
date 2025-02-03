@@ -18,7 +18,7 @@ class RNN(nn.Module):
         self.device = device
         self.time_step = params.eval_length + params.overlap_length
         self.fc_length = params.eval_length + params.overlap_length
-        self.dec_input = torch.nn.Linear(params.inputx_size, params.rnn_d_model)
+        self.dec_input = torch.nn.Linear(params.input_size, params.rnn_d_model)
         self.dec_rnn = torch.nn.GRU(params.rnn_d_model, 
                                     params.rnn_hidden_size, 
                                     params.rnn_layer, 

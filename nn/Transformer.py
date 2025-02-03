@@ -18,7 +18,7 @@ class Transformer(nn.Module):
         self.device = device
         self.time_step = params.eval_length + params.overlap_length
         self.fc_length = params.eval_length + params.overlap_length
-        self.decx_input = torch.nn.Linear(params.inputx_size, params.transformer_d_model)
+        self.decx_input = torch.nn.Linear(params.input_size, params.transformer_d_model)
         self.decy_input = torch.nn.Linear(params.inputy_size, params.transformer_d_model)
         transformer = torch.nn.Transformer(
                                     d_model=params.transformer_d_model, 

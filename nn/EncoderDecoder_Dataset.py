@@ -56,28 +56,24 @@ class Rawdb(object):
         training/testing data(with sliding window) and label
         output: numpy array 
         '''
+        params = self.params
         dummy_len = int(params.overlap_length * self.code_rate)
-        dummy_start_len = int(params.drop_len * self.code_rate)
-        # define ber
+        codeword_len = int(info_len/self.code_rate)
         num_ber = int((params.snr_stop-params.snr_start)/params.snr_step+1)
         
-        bt_size_snr = int(info_len/params.eval_length)
+        bt_size_snr = int(codeword_len/params.eval_length)
         bt_size = num_ber*bt_size_snr
-        block_length = self.params.eval_length + self.params.overlap_length
+        block_length = params.eval_length + params.overlap_length
         data, label = (np.zeros((bt_size, block_length)), np.zeros((bt_size, block_length)))
         
         # generate data and label from stream data
         for snr_idx in np.arange(0, num_ber):
             snr = params.snr_start+snr_idx*params.snr_step
             
-            info = np.random.choice(np.arange(0, 2), size = (1, dummy_start_len + info_len + dummy_len), p=[1-prob, prob])
+            info = np.random.choice(np.arange(0, 2), size = (1, info_len + dummy_len), p=[1-prob, prob])
             
             codeword = self.NRZI_converter.forward_coding(self.RLL_modulator.forward_coding(info))
             rf_signal = self.disk_read_channel.RF_signal(codeword)
-            
-            codeword  = codeword[:, params.drop_len:]
-            rf_signal = rf_signal[:, params.drop_len:]
-            
             equalizer_input = self.disk_read_channel.awgn(rf_signal, snr)
             
             length = equalizer_input.shape[1]
@@ -90,7 +86,7 @@ class Rawdb(object):
                 label[snr_idx*bt_size_snr + signal_idx:snr_idx*bt_size_snr + signal_idx + 1, :] = codeword_truncation
                 data[snr_idx*bt_size_snr + signal_idx:snr_idx*bt_size_snr + signal_idx + 1, :]  = equalizer_input_truncation
         
-        data = sliding_shape(data, self.params.inputx_size)
+        data = sliding_shape(data, params.input_size)
         label = label
         
         print("generate training/testing data(with sliding window) and label")
@@ -102,23 +98,22 @@ class Rawdb(object):
         evaluation data (with sliding window) and label
         output: numpy array data_eval, numpy array label_eval
         '''
+        params = self.params
+        info_len = params.data_val_len
         dummy_len = int(params.overlap_length * self.code_rate)
-        dummy_start_len = int(params.drop_len * self.code_rate)
+        codeword_len = int(info_len/self.code_rate)
+        num_ber = 1
         
-        bt_size_snr = int(params.data_val_len/params.eval_length)
-        bt_size = bt_size_snr
-        block_length = self.params.eval_length + self.params.overlap_length
+        bt_size_snr = int(codeword_len/params.eval_length)
+        bt_size = num_ber*bt_size_snr
+        block_length = params.eval_length + params.overlap_length
         data, label = (np.zeros((bt_size, block_length)), np.zeros((bt_size, block_length)))
         
         # generate data and label from stream data
-        info = np.random.choice(np.arange(0, 2), size = (1, dummy_start_len + params.data_val_len + dummy_len), p=[1-prob, prob])
+        info = np.random.choice(np.arange(0, 2), size = (1, info_len + dummy_len), p=[1-prob, prob])
         
         codeword = self.NRZI_converter.forward_coding(self.RLL_modulator.forward_coding(info))
         rf_signal = self.disk_read_channel.RF_signal(codeword)
-        
-        codeword  = codeword[:, params.drop_len:]
-        rf_signal = rf_signal[:, params.drop_len:]
-        
         equalizer_input = self.disk_read_channel.awgn(rf_signal, snr)
         
         length = equalizer_input.shape[1]
@@ -131,7 +126,7 @@ class Rawdb(object):
             label[signal_idx:signal_idx + 1, :] = codeword_truncation
             data[signal_idx:signal_idx + 1, :]  = equalizer_input_truncation
         
-        data = sliding_shape(data, self.params.inputx_size)
+        data = sliding_shape(data, params.input_size)
         label = label
         
         print("generate evaluation data (with sliding window) and label")
@@ -143,11 +138,12 @@ class Rawdb(object):
         if not os.path.exists(data_dir):
             os.makedirs(data_dir)
         
-        block_length = self.params.eval_length + self.params.overlap_length
+        params =  self.params
+        block_length = params.eval_length + params.overlap_length
 
-        data = np.empty((0, block_length, self.params.inputx_size))
+        data = np.empty((0, block_length, params.input_size))
         label = np.empty((0, block_length))
-        for _ in range(self.params.train_set_batches):
+        for _ in range(params.train_set_batches):
 
             miu = (0.1 + 0.9)/2
             sigma = (0.9 - miu)/2
@@ -158,16 +154,16 @@ class Rawdb(object):
             data = np.append(data, data_train, axis=0)
             label = np.append(label, label_train, axis=0)
 
-        file_path = f"{data_dir}/encoderdecoder_train_set.pth"
+        file_path = f"{data_dir}/classifier_train_set.pth"
         torch.save({
             'data': data,
             'label': label
         }, file_path)
         print("generate training dataset\n")
 
-        data = np.empty((0, block_length, self.params.inputx_size))
+        data = np.empty((0, block_length, params.input_size))
         label = np.empty((0, block_length))
-        for _ in range(self.params.test_set_batches):
+        for _ in range(params.test_set_batches):
 
             miu = (0.1 + 0.9)/2
             sigma = (0.9 - miu)/2
@@ -178,32 +174,32 @@ class Rawdb(object):
             data = np.append(data, data_test, axis=0)
             label = np.append(label, label_test, axis=0)
 
-        file_path = f"{data_dir}/encoderdecoder_test_set.pth"
+        file_path = f"{data_dir}/classifier_test_set.pth"
         torch.save({
             'data': data,
             'label': label
         }, file_path)
         print("generate testing dataset\n")
 
-        data = np.empty((0, block_length, self.params.inputx_size))
+        data = np.empty((0, block_length, params.input_size))
         label = np.empty((0, block_length))
-        for _ in range(self.params.validate_set_batches):
+        for _ in range(params.validate_set_batches):
 
             miu = (0.1 + 0.9)/2
             sigma = (0.9 - miu)/2
             random_p = np.random.normal(miu, sigma)
             random_p = min(max(random_p, 0), 1)
 
-            miu = (self.params.snr_start + self.params.snr_stop)/2
-            sigma = (self.params.snr_stop - miu)/2
+            miu = (params.snr_start + params.snr_stop)/2
+            sigma = (params.snr_stop - miu)/2
             random_snr = np.random.normal(miu, sigma)
-            random_snr = min(max(random_snr, self.params.snr_start), self.params.snr_stop)
+            random_snr = min(max(random_snr, params.snr_start), params.snr_stop)
 
             data_val, label_val = self.data_generation_eval(random_p, random_snr)
             data = np.append(data, data_val, axis=0)
             label = np.append(label, label_val, axis=0)
 
-        file_path = f"{data_dir}/encoderdecoder_validate_set.pth"
+        file_path = f"{data_dir}/classifier_validate_set.pth"
         torch.save({
             'data': data,
             'label': label

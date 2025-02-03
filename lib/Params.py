@@ -32,9 +32,6 @@ class Params:
         # awgn params
         self.truncation4energy = 5000
         
-        # drop len in channel
-        self.drop_len = 60
-        
         # dataset params
         self.train_set_batches = 200
         self.test_set_batches = 100
@@ -52,20 +49,19 @@ class Params:
         self.batch_size_val = 600
 
         # general model arch params
-        self.inputx_size = 5
-        self.inputy_size = 1
-        self.output_size = 1
+        self.input_size = 6 # dimension of a feature should always equal to length of channel memory length
+        self.output_size = 1 # model determine whether the current bit is 0 or 1
         self.model_arch = "rnn"
         # self.model_arch = "transformer"
         
         # rnn model arch params
-        self.rnn_d_model = 5
+        self.rnn_d_model = 6
         self.rnn_hidden_size = 50
         self.rnn_layer = 4
         self.rnn_dropout_ratio = 0.1
         
         # transformer model arch params
-        self.transformer_d_model = 16
+        self.transformer_d_model = 6
         self.transformer_nhead   = 4
         self.transformer_hidden_size = 50
         self.transformer_encoder_layers = 4
