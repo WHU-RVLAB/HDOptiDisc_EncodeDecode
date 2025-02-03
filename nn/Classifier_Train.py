@@ -13,12 +13,13 @@ from MLP import MLP
 from CNN import CNN
 from RNN import RNN
 from Transformer import Transformer
-from Classifier_Dataset import PthDataset
+
 sys.path.append(
     os.path.dirname(
         os.path.dirname(
             os.path.abspath(__file__))))
 from lib.Params import Params
+from lib.Classifier_Dataset import PthDataset
 sys.path.pop()
 
 def main():
