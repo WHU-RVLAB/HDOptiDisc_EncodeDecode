@@ -62,10 +62,9 @@ class Params:
         
         # transformer model arch params
         self.transformer_d_model = 6
-        self.transformer_nhead   = 4
+        self.transformer_nhead   = 2
         self.transformer_hidden_size = 50
         self.transformer_encoder_layers = 4
-        self.transformer_decoder_layers = 4
         self.transformer_dropout_ratio = 0.1
         
         # train params

@@ -80,7 +80,7 @@ if __name__ == '__main__':
     pr_signal = target_pr_channel.target_channel(codeword)
     
     pr_adaptive_equalizer = Adaptive_Equalizer(        
-        equalizer_input  = rf_signal,
+        equalizer_input  = equalizer_input,
         reference_signal = pr_signal,
         taps_num = 15,
         mu = 0.01

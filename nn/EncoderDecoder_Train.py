@@ -1,7 +1,6 @@
 import os
 
 import torch
-import torch.nn as nn
 from torch.utils.data import DataLoader
 import torch.nn.functional as F
 import numpy as np
@@ -9,15 +8,15 @@ import sys
 import datetime
 np.set_printoptions(threshold=sys.maxsize)
 
+from BaseModel import BaseModel
+from RNN import RNN
+from Transformer import Transformer
+from EncoderDecoder_Dataset import PthDataset
 sys.path.append(
     os.path.dirname(
         os.path.dirname(
             os.path.abspath(__file__))))
-from nn.EncoderDecoder_Dataset import PthDataset
 from lib.Params import Params
-from lib.Utils import convert2transformer
-from RNN import RNN
-from Transformer import Transformer
 sys.path.pop()
 
 def main():
@@ -32,9 +31,9 @@ def main():
         device = torch.device("cpu")
         
     # data loader
-    train_dataset = PthDataset(file_path='../data/encoderdecoder_train_set.pth')
-    test_dataset = PthDataset(file_path='../data/encoderdecoder_test_set.pth')
-    val_dataset = PthDataset(file_path='../data/encoderdecoder_validate_set.pth')
+    train_dataset = PthDataset(file_path='../data/classifier_train_set.pth')
+    test_dataset = PthDataset(file_path='../data/classifier_test_set.pth')
+    val_dataset = PthDataset(file_path='../data/classifier_validate_set.pth')
 
     train_loader = DataLoader(train_dataset, batch_size=params.batch_size_train, shuffle=True, num_workers=4)
     test_loader = DataLoader(test_dataset, batch_size=params.batch_size_test, shuffle=False, num_workers=4)
@@ -95,29 +94,21 @@ def main():
             'arch': params.model_arch,
             'state_dict': model.state_dict(),
             'optimizer': optimizer.state_dict(),
-        }, model_path)
+        }, model_path, pickle_protocol=4)
     result.close()
     
-def train(train_loader, model, optimizer, epoch, device):
+def train(train_loader, model:BaseModel, optimizer, epoch, device):
     # switch to train mode
     model.train()
     
     train_loss = 0
     bt_cnt = 0
     for datas, labels in train_loader:
-        if params.model_arch == "rnn":
-            datas, labels = datas.to(device), labels.to(device)
-            
-            optimizer.zero_grad()
-            output = model(datas)
-            loss = loss_func(output, labels, device)
-        elif params.model_arch == "transformer":
-            src, target_input, target_pred, target_mask = \
-            convert2transformer(datas, labels, params.transformer_nhead, start=2, device=device)
-            
-            optimizer.zero_grad()
-            output = model.forward(src, target_input, target_mask)
-            loss = loss_func(output, target_pred, device)
+        datas, labels = datas.to(device), labels.to(device)
+        
+        optimizer.zero_grad()
+        output = model(datas)
+        loss = loss_func(output, labels, device)
 
         # compute gradient and do gradient step
         loss.backward()
@@ -133,7 +124,7 @@ def train(train_loader, model, optimizer, epoch, device):
     return avg_loss
             
 
-def validate(test_loader, val_loader, model, epoch, device):
+def validate(test_loader, val_loader, model:BaseModel, epoch, device):
     # switch to evaluate mode
     model.eval()
         
@@ -142,17 +133,10 @@ def validate(test_loader, val_loader, model, epoch, device):
         test_loss = 0
         bt_cnt = 0
         for datas, labels in test_loader:
-            if params.model_arch == "rnn":
-                datas, labels = datas.to(device), labels.to(device)
-                
-                output = model(datas)
-                loss = loss_func(output, labels, device)
-            elif params.model_arch == "transformer":
-                src, target_input, target_pred, target_mask = \
-                convert2transformer(datas, labels, params.transformer_nhead, start=2, device=device)
-                
-                output = model.forward(src, target_input, target_mask)
-                loss = loss_func(output, target_pred, device)
+            datas, labels = datas.to(device), labels.to(device)
+            
+            output = model(datas)
+            loss = loss_func(output, labels, device)
 
             test_loss += loss.item()
             bt_cnt += 1

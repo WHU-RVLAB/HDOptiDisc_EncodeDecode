@@ -4,6 +4,8 @@ import sys
 import os
 np.set_printoptions(threshold=sys.maxsize)
 
+from RNN import RNN
+from Transformer import Transformer
 sys.path.append(
     os.path.dirname(
         os.path.dirname(
@@ -14,8 +16,6 @@ from lib.Channel_Modulator import RLL_Modulator
 from lib.Channel_Converter import NRZI_Converter
 from lib.Disk_Read_Channel import Disk_Read_Channel
 from lib.Params import Params
-from RNN import RNN
-from Transformer import Transformer
 sys.path.pop()
 
 np.random.seed(12345)

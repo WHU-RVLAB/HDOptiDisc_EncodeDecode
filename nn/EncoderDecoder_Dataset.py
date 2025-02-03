@@ -158,7 +158,7 @@ class Rawdb(object):
         torch.save({
             'data': data,
             'label': label
-        }, file_path)
+        }, file_path, pickle_protocol=4)
         print("generate training dataset\n")
 
         data = np.empty((0, block_length, params.input_size))
@@ -178,7 +178,7 @@ class Rawdb(object):
         torch.save({
             'data': data,
             'label': label
-        }, file_path)
+        }, file_path, pickle_protocol=4)
         print("generate testing dataset\n")
 
         data = np.empty((0, block_length, params.input_size))
@@ -203,7 +203,7 @@ class Rawdb(object):
         torch.save({
             'data': data,
             'label': label
-        }, file_path)
+        }, file_path, pickle_protocol=4)
         print("generate validate dataset\n")
 
 if __name__ == '__main__':

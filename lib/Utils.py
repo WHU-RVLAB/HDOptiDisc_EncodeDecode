@@ -1,6 +1,5 @@
 import matplotlib.pyplot as plt
 import numpy as np
-import torch
 
 def plot_altogether(X, Ys, title, xlabel, ylabel, xtick_interval=None, ytick_interval=None):
     for Y in Ys:
@@ -92,30 +91,3 @@ def sliding_shape(x, input_size):
             y[bt, time, :] = x[bt, time:time+input_size]
     
     return y.astype(np.float32)
-
-def subsequent_mask(bt_size, size):
-    "Mask out subsequent positions."
-    attn_shape = (bt_size, size, size)
-    subsequent_mask = np.triu(np.ones(attn_shape), k=1).astype('uint8')
-    return torch.from_numpy(subsequent_mask == 0)
-
-@staticmethod
-def convert2transformer(data, label, num_heads=4, start=2, device = None):
-    src = data.to(device)
-    target = label.to(device)
-    target = torch.cat([torch.full((target.shape[0], 1), start, device=target.device, dtype=target.dtype), target], dim=1)
-    
-    if label.shape[1] == 0:
-        target_input = target.unsqueeze(-1).contiguous()
-        target_pred  = target.contiguous()
-    else:
-        target_input = target[:, :-1].unsqueeze(-1).contiguous()
-        target_pred  = target[:, 1:].contiguous()
-    
-    
-    bsz, tgt_len, _ = target_input.shape
-    target_mask  = subsequent_mask(bsz, tgt_len)
-    target_mask = target_mask.repeat(num_heads, 1, 1)
-    target_mask = target_mask.view(bsz * num_heads, tgt_len, tgt_len).float().contiguous().to(device)
-    
-    return src, target_input, target_pred, target_mask
