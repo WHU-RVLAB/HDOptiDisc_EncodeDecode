@@ -39,7 +39,7 @@ def main():
     
     model.fit(X_train, y_train, X_test, y_test)
     
-    y_val_pred = model.decode(X_val)
+    y_val_pred = model.decode(len(X_val), X_val)
     ber = (np.sum(np.abs(y_val - y_val_pred))/y_val.shape[0])
     print('Validation ber: {}'.format(ber))
     

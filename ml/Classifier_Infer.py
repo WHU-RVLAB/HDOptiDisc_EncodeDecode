@@ -69,7 +69,7 @@ def ml_sys():
         for pos in range(0, length - params.overlap_length, params.eval_length):
             equalizer_input_truncation = equalizer_input[:, pos:pos+params.eval_length+params.overlap_length]
             truncation_input = sliding_shape(equalizer_input_truncation, params.input_size)
-            dec_tmp = model.decode(truncation_input[0, :, :])
+            dec_tmp = model.decode(params.eval_length, truncation_input[0, :, :])
             decodeword = np.append(decodeword, dec_tmp, axis=1)
 
         print("The SNR is:")

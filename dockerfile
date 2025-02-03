@@ -10,5 +10,5 @@ RUN apt-get update \
 
 # Installs python dependencies. 
 RUN pip3 install --upgrade pip \
-        && pip3 install matplotlib scipy numpy torch torchvision scikit-learn xgboost 
+        && pip3 install -r requirements.txt
 

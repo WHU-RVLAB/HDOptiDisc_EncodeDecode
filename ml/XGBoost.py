@@ -34,12 +34,12 @@ class XGBoost(object):
                     verbose=True)
         self.xgb_model = xgb_model
 
-    def decode(self, X_val):
+    def decode(self, eval_length, X_val):
         if isinstance(self.xgb_model, xgb.Booster):
             y_pred = self.xgb_model.predict(xgb.DMatrix(X_val))
         else:
             y_pred = self.xgb_model.predict(X_val)
-        y_val = codeword_threshold(y_pred)[:self.params.eval_length]
+        y_val = codeword_threshold(y_pred)[:eval_length]
         y_val = np.array(y_val).reshape(1, -1)
         return y_val
     
