@@ -11,7 +11,7 @@ np.set_printoptions(threshold=sys.maxsize)
 from BaseModel import BaseModel
 from RNN import RNN
 from Transformer import Transformer
-from EncoderDecoder_Dataset import PthDataset
+from Classifier_Dataset import PthDataset
 sys.path.append(
     os.path.dirname(
         os.path.dirname(
