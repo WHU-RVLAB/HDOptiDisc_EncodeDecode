@@ -19,11 +19,17 @@ class XGBoost(object):
         self.params = params
         
     def fit(self, X_train, y_train, X_test, y_test):
-        params =  {
+        params = {
             'objective':'binary:logistic',
-            'eta':0.72,
-            'n_estimators': 300,                 
-            'max_depth': 5
+            'eta': 0.1,                    
+            'n_estimators': 1000,          
+            'max_depth': 5,
+            'subsample': 0.8,              
+            'colsample_bytree': 0.8,      
+            'gamma': 0.1,                  
+            'reg_alpha': 0.5,             
+            'reg_lambda': 1.0,
+            'early_stopping_rounds':50
         }
         eval_set = [(X_test, y_test)]
         xgb_model = xgb.XGBClassifier(**params)
