@@ -61,6 +61,7 @@ def realistic_sys(params:Params):
     ber_info = np.zeros((1, num_ber))
     
     # eval mode
+    ber_list = []
     for idx in np.arange(0, num_ber):
         snr = params.snr_start+idx*params.snr_step
         
@@ -190,6 +191,13 @@ def realistic_sys(params:Params):
                / codeword_len)
         print("The bit error rate (BER) in Target PR channel is:")
         print(ber_pr)
+        ber_list.append(ber)
+    
+    ber_file = "PRML_result.txt"
+    with open(ber_file, "w") as file:
+        for ber in ber_list:
+            file.write(f"{ber:.4f}\n")
+    print(f"ber data have save to {ber_file}")
 
 ## Detector: Viterbi detector
 class Viterbi(object):

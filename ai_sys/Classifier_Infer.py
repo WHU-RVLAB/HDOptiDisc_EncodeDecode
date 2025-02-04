@@ -104,6 +104,7 @@ def ai_sys():
     ber_info = np.zeros((1, num_ber))
     
     # eval AI sys
+    ber_list = []
     for idx in np.arange(0, num_ber):
         snr = params.snr_start+idx*params.snr_step
         
@@ -130,6 +131,13 @@ def ai_sys():
         ber = (np.count_nonzero(np.abs(codeword[:, 0:codeword_len] - decodeword[:, 0:codeword_len])) / codeword_len)
         print(f"The bit error rate (BER) use {params.model_arch} is:")
         print(ber)
+        ber_list.append(ber)
+    
+    ber_file = f"{params.model_arch}_result.txt"
+    with open(ber_file, "w") as file:
+        for ber in ber_list:
+            file.write(f"{ber:.4f}\n")
+    print(f"ber data have save to {ber_file}")
 
 if __name__ == '__main__':
     ai_sys()

@@ -1,7 +1,7 @@
-matplotlib
-scipy
-numpy
-torch
-torchvision
-scikit-learn
-xgboost
+matplotlib==3.10.0
+scipy==1.15.1
+numpy==2.0.1
+torch==2.5.1
+torchvision==0.20.1
+scikit-learn==1.6.1
+xgboost==2.1.3
