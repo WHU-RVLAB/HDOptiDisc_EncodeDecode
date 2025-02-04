@@ -32,8 +32,11 @@ if __name__ == '__main__':
         '#9467bd',  # 紫色
         '#8c564b',  # 棕色
         '#e377c2',  # 粉色
-        '#7f7f7f'   # 灰色
+        '#7f7f7f',  # 灰色
+        '#bcbd22',  # 黄色
+        '#17becf'   # 青色
     ]
+    
     for idx, file_path in enumerate(files):
         
         filename = os.path.basename(file_path)
@@ -58,7 +61,7 @@ if __name__ == '__main__':
     plot_altogether(
         X=X, 
         Ys=Ys, 
-        title='Bers of different algorithm decoder for BDs',     
+        title='Bers of different algorithm Decoders for BDs',     
         xlabel="SNRs", 
         ylabel="Bers(log10)"
     )

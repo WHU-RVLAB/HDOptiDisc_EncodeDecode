@@ -62,6 +62,7 @@ def realistic_sys(params:Params):
     
     # eval mode
     ber_list = []
+    ber_pr_list = []
     for idx in np.arange(0, num_ber):
         snr = params.snr_start+idx*params.snr_step
         
@@ -192,12 +193,19 @@ def realistic_sys(params:Params):
         print("The bit error rate (BER) in Target PR channel is:")
         print(ber_pr)
         ber_list.append(ber)
+        ber_pr_list.append(ber_pr)
     
     ber_file = "../data/PRML_result.txt"
     with open(ber_file, "w") as file:
         for ber in ber_list:
-            file.write(f"{ber:.4f}\n")
+            file.write(f"{ber}\n")
     print(f"ber data have save to {ber_file}")
+    
+    ber_pr_file = "../data/TargetPR_result.txt"
+    with open(ber_pr_file, "w") as file:
+        for ber_pr in ber_pr_list:
+            file.write(f"{ber_pr}\n")
+    print(f"ber_pr data have save to {ber_pr_file}")
 
 ## Detector: Viterbi detector
 class Viterbi(object):

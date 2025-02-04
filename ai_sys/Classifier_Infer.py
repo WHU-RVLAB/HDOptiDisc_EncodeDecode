@@ -136,7 +136,7 @@ def ai_sys():
     ber_file = f"../data/{params.model_arch}_result.txt"
     with open(ber_file, "w") as file:
         for ber in ber_list:
-            file.write(f"{ber:.4f}\n")
+            file.write(f"{ber}\n")
     print(f"ber data have save to {ber_file}")
 
 if __name__ == '__main__':
