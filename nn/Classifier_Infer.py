@@ -4,6 +4,10 @@ import sys
 import os
 np.set_printoptions(threshold=sys.maxsize)
 
+from LR import LR
+from KNN import KNN
+from SVM import SVM
+from XGBoost import XGBoost
 from MLP import MLP
 from CNN import CNN
 from RNN import RNN
@@ -22,7 +26,7 @@ sys.path.pop()
 
 np.random.seed(12345)
 
-def nn_sys():
+def ai_sys():
     global params
     params = Params()
     
@@ -51,28 +55,47 @@ def nn_sys():
 
     # model
     model_file = None
-    if params.model_arch == "mlp":
+    is_nn = 0
+    if params.model_arch == "lr":
+        model = LR(params)
+        model_file = "lr_model.joblib"
+    elif params.model_arch == "knn":
+        model = KNN(params)
+        model_file = "knn_model.joblib"
+    elif params.model_arch == "svm":
+        model = SVM(params)
+        model_file = "svm_model.joblib"
+    elif params.model_arch == "xgboost":
+        model = XGBoost(params)
+        model_file = "xgb_model.json"
+    elif params.model_arch == "mlp":
+        is_nn = 1
         model = MLP(params, device).to(device)
         model_file = "mlp.pth.tar"
     elif params.model_arch == "cnn":
+        is_nn = 1
         model = CNN(params, device).to(device)
         model_file = "cnn.pth.tar"
     elif params.model_arch == "rnn":
+        is_nn = 1
         model = RNN(params, device).to(device)
         model_file = "rnn.pth.tar"
     elif params.model_arch == "transformer":
+        is_nn = 1
         model = Transformer(params, device).to(device)
         model_file = "transformer.pth.tar"
 
     # load model from model_file
     model_path = f"{params.model_dir}/{model_file}"
-    if model_path:
+    if is_nn:
         if os.path.isfile(model_path):
             print("=> loading checkpoint '{}'".format(model_path))
             checkpoint = torch.load(model_path, weights_only=False)
             model.load_state_dict(checkpoint['state_dict'])
         else:
             print("=> no checkpoint found at '{}'".format(model_path))
+    else:
+        model.load_model(model_path)
     
     # define ber
     num_ber = int((params.snr_stop-params.snr_start)/params.snr_step+1)
@@ -80,7 +103,7 @@ def nn_sys():
     ber_channel = np.zeros((1, num_ber))
     ber_info = np.zeros((1, num_ber))
     
-    # eval NN sys
+    # eval AI sys
     for idx in np.arange(0, num_ber):
         snr = params.snr_start+idx*params.snr_step
         
@@ -95,8 +118,11 @@ def nn_sys():
         for pos in range(0, length - params.overlap_length, params.eval_length):
             equalizer_input_truncation = equalizer_input[:, pos:pos+params.eval_length+params.overlap_length]
             truncation_input = sliding_shape(equalizer_input_truncation, params.input_size)
-            truncation_input = torch.from_numpy(truncation_input).float().to(device)
-            dec_tmp = model.decode(params.eval_length, truncation_input, device)
+            if is_nn:
+                truncation_input = torch.from_numpy(truncation_input).float().to(device)
+                dec_tmp = model.decode(params.eval_length, truncation_input, device)
+            else:
+                dec_tmp = model.decode(params.eval_length, truncation_input[0, :, :])
             decodeword = np.append(decodeword, dec_tmp, axis=1)
 
         print("The SNR is:")
@@ -106,4 +132,4 @@ def nn_sys():
         print(ber)
 
 if __name__ == '__main__':
-    nn_sys()
+    ai_sys()
