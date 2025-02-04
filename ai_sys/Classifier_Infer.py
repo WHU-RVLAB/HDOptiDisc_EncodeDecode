@@ -133,7 +133,7 @@ def ai_sys():
         print(ber)
         ber_list.append(ber)
     
-    ber_file = f"{params.model_arch}_result.txt"
+    ber_file = f"../data/{params.model_arch}_result.txt"
     with open(ber_file, "w") as file:
         for ber in ber_list:
             file.write(f"{ber:.4f}\n")

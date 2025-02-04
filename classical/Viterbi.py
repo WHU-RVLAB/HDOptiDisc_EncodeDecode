@@ -193,7 +193,7 @@ def realistic_sys(params:Params):
         print(ber_pr)
         ber_list.append(ber)
     
-    ber_file = "PRML_result.txt"
+    ber_file = "../data/PRML_result.txt"
     with open(ber_file, "w") as file:
         for ber in ber_list:
             file.write(f"{ber:.4f}\n")
