@@ -52,8 +52,6 @@ class Params:
         self.input_size = 6 # dimension of a feature should always equal to length of channel memory length
         self.output_size = 1 # model determine whether the current bit is 0 or 1
         # self.model_arch = "lr"
-        # self.model_arch = "knn"
-        # self.model_arch = "svm"
         # self.model_arch = "xgboost"
         # self.model_arch = "mlp"
         # self.model_arch = "cnn"

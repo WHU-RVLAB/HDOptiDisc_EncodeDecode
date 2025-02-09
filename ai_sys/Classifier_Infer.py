@@ -5,8 +5,6 @@ import os
 np.set_printoptions(threshold=sys.maxsize)
 
 from LR import LR
-from KNN import KNN
-from SVM import SVM
 from XGBoost import XGBoost
 from MLP import MLP
 from CNN import CNN
@@ -59,12 +57,6 @@ def ai_sys():
     if params.model_arch == "lr":
         model = LR(params)
         model_file = "lr_model.joblib"
-    elif params.model_arch == "knn":
-        model = KNN(params)
-        model_file = "knn_model.joblib"
-    elif params.model_arch == "svm":
-        model = SVM(params)
-        model_file = "svm_model.joblib"
     elif params.model_arch == "xgboost":
         model = XGBoost(params)
         model_file = "xgb_model.json"

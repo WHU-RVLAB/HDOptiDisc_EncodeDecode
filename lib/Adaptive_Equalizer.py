@@ -176,15 +176,18 @@ if __name__ == '__main__':
     pr_signal = target_pr_channel.target_channel(codeword)
     
     length = equalizer_input.shape[1]
+    
+    # actually equalizer output stream data
+    pr_adaptive_equalizer.equalizer_input = equalizer_input
+    equalizer_output = pr_adaptive_equalizer.equalized_signal()
+    
     for pos in range(0, length - params.overlap_length, params.eval_length):
         
         codeword_truncation = codeword[:, pos:pos+params.eval_length+params.overlap_length]
         rf_signal_truncation = rf_signal[:, pos:pos+params.eval_length+params.overlap_length]
         equalizer_input_truncation = equalizer_input[:, pos:pos+params.eval_length+params.overlap_length]
         pr_signal_truncation = pr_signal[:, pos:pos+params.eval_length+params.overlap_length]
-        
-        pr_adaptive_equalizer.equalizer_input = equalizer_input_truncation
-        detector_input = pr_adaptive_equalizer.equalized_signal()
+        detector_input = equalizer_output[:, pos:pos+params.eval_length+params.overlap_length]
         
         # pr_adaptive_equalizer.equalizer_input  = equalizer_input_truncation
         # pr_adaptive_equalizer.reference_signal = pr_signal_truncation

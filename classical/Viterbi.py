@@ -43,6 +43,7 @@ def realistic_sys(params:Params):
     disk_read_channel = Disk_Read_Channel(params)
     target_pr_channel = Target_PR_Channel(params)
     viterbi_detector = Viterbi(params, channel_dict, ini_metric)
+    viterbi_detector_pr = Viterbi(params, channel_dict, ini_metric)
     
     pr_adaptive_equalizer = Adaptive_Equalizer(        
         equalizer_input  = None,
@@ -75,29 +76,23 @@ def realistic_sys(params:Params):
         pr_signal_noise = target_pr_channel.awgn(pr_signal, snr)
         
         length = equalizer_input.shape[1]
+        
+        # actually equalizer output stream data
+        pr_adaptive_equalizer.equalizer_input = equalizer_input
+        equalizer_output = pr_adaptive_equalizer.equalized_signal()
+        
         detectword = np.empty((1, 0))
         detectword_pr = np.empty((1, 0))
-        
-        # start from a known seq
-        known_seq = codeword[:, :params.eval_length]
-        detectword = np.append(detectword, known_seq, axis=1)
         for pos in range(0, length - params.overlap_length, params.eval_length):
             
-            codeword_truncation = codeword[:, pos:pos+params.eval_length+params.overlap_length]
-            rf_signal_truncation = rf_signal[:, pos:pos+params.eval_length+params.overlap_length]
-            equalizer_input_truncation = equalizer_input[:, pos:pos+params.eval_length+params.overlap_length]
-            pr_signal_truncation = pr_signal[:, pos:pos+params.eval_length+params.overlap_length]
+            detector_input             = equalizer_output[:, pos:pos+params.eval_length+params.overlap_length]
             pr_signal_noise_truncation = pr_signal_noise[:, pos:pos+params.eval_length+params.overlap_length]
-            
-            pr_adaptive_equalizer.equalizer_input = equalizer_input_truncation
-            detector_input = pr_adaptive_equalizer.equalized_signal()
-            detector_input = detector_input[:, params.eval_length:]
             
             dec_tmp, metric_next = viterbi_detector.vit_dec(detector_input, ini_metric)
             ini_metric = metric_next
             detectword = np.append(detectword, dec_tmp, axis=1)
             
-            dec_tmp_pr, metric_next_pr = viterbi_detector.vit_dec(pr_signal_noise_truncation, ini_metric_pr)
+            dec_tmp_pr, metric_next_pr = viterbi_detector_pr.vit_dec(pr_signal_noise_truncation, ini_metric_pr)
             ini_metric_pr = metric_next_pr
             detectword_pr = np.append(detectword_pr, dec_tmp_pr, axis=1)
             
