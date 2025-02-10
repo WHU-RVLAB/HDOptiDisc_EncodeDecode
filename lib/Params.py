@@ -71,8 +71,8 @@ class Params:
         self.cnn_dropout_ratio = 0.1
         
         # unet1D model arch params
-        self.unet_d_model = 6
-        self.unet_base_filters = 50
+        self.unet_d_model = 16
+        self.unet_base_filters = 4
         self.unet_kernel_size = 3
         self.unet_dropout_ratio = 0.1
         

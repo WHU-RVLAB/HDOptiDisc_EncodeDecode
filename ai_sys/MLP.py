@@ -23,11 +23,22 @@ class MLP(BaseModel):
                                      nn.Dropout(params.mlp_dropout_ratio))
         self.dec_output = nn.Linear(params.mlp_hidden_size, params.output_size)
         
-    def forward(self, x):        
-        x = self.dec_input(x)
-        y = self.dec_mlp(x)
-        y_dec = y[:, :self.time_step, :]
-
-        dec = torch.sigmoid(self.dec_output(y_dec))
+    def forward(self, x): 
         
-        return torch.squeeze(dec, 2)
+        x_bt_size = x.shape[0]
+        
+        x = x.reshape(-1, self.params.input_size)
+               
+        x = self.dec_input(x)
+        
+        x = self.dec_mlp(x)
+        
+        x = self.dec_output(x)
+        
+        x = torch.sigmoid(x)
+        
+        x = x.reshape(x_bt_size, self.time_step, 1)
+        
+        x = torch.squeeze(x, 2)
+        
+        return x

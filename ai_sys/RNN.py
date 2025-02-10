@@ -25,11 +25,16 @@ class RNN(BaseModel):
         
         self.dec_output = nn.Linear(2*params.rnn_hidden_size, params.output_size)
         
-    def forward(self, x):        
-        x = self.dec_input(x)
-        y, _  = self.dec_rnn(x)
-        y_dec = y[:, :self.time_step, :]
-
-        dec = torch.sigmoid(self.dec_output(y_dec))
+    def forward(self, x): 
         
-        return torch.squeeze(dec, 2)
+        x = self.dec_input(x)
+        
+        x, _  = self.dec_rnn(x)
+
+        x = self.dec_output(x)
+        
+        x = torch.sigmoid(x)
+        
+        x = torch.squeeze(x, 2)
+        
+        return x

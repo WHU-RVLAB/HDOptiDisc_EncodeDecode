@@ -27,11 +27,16 @@ class Transformer(BaseModel):
         self.encoder = transformer.encoder
         self.dec_output = nn.Linear(params.transformer_d_model, params.output_size)
         
-    def forward(self, x):        
+    def forward(self, x):
+                
         x = self.dec_input(x)
-        y = self.encoder(x)
-        y_dec = y[:, :self.time_step, :]
-
-        dec = torch.sigmoid(self.dec_output(y_dec))
         
-        return torch.squeeze(dec, 2)
+        x = self.encoder(x)
+
+        x = self.dec_output(x)
+        
+        x = torch.sigmoid(x)
+        
+        x = torch.squeeze(x, 2)
+        
+        return x

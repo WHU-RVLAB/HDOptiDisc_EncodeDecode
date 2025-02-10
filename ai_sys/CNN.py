@@ -31,9 +31,25 @@ class CNN(BaseModel):
         self.dec_output = nn.Linear(params.cnn_hidden_size, params.output_size)
 
     def forward(self, x):
-        x = self.dec_input(x) 
-        x = x.permute(0, 2, 1)
-        y = self.dec_cnn(x)
-        y = y.permute(0, 2, 1)
-        dec = torch.sigmoid(self.dec_output(y))
-        return torch.squeeze(dec, 2)
+        
+        x_bt_size = x.shape[0]
+        
+        x = x.reshape(-1, self.params.input_size)
+        
+        x = self.dec_input(x)
+        
+        x = torch.unsqueeze(x, 2)
+        
+        x = self.dec_cnn(x)
+        
+        x = torch.squeeze(x, 2)
+        
+        x = self.dec_output(x)
+        
+        x = torch.sigmoid(x)
+        
+        x = x.reshape(x_bt_size, self.time_step, 1)
+        
+        x = torch.squeeze(x, 2)
+    
+        return x    
