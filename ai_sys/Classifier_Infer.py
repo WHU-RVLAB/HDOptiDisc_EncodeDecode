@@ -8,6 +8,7 @@ from LR import LR
 from XGBoost import XGBoost
 from MLP import MLP
 from CNN import CNN
+from Unet1D import UNet1D
 from RNN import RNN
 from Transformer import Transformer
 sys.path.append(
@@ -68,6 +69,10 @@ def ai_sys():
         is_nn = 1
         model = CNN(params, device).to(device)
         model_file = "cnn.pth.tar"
+    elif params.model_arch == "unet":
+        is_nn = 1
+        model = UNet1D(params, device).to(device)
+        model_file = "unet.pth.tar"
     elif params.model_arch == "rnn":
         is_nn = 1
         model = RNN(params, device).to(device)
