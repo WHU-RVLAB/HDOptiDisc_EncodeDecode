@@ -61,14 +61,14 @@ class Params:
         
         # mlp model arch params
         self.mlp_d_model = 6
-        self.mlp_hidden_size = 50
-        self.mlp_dropout_ratio = 0.1
+        self.mlp_hidden_size = 8
+        self.mlp_dropout_ratio = 0.0
         
         # cnn model arch params
         self.cnn_d_model = 6
-        self.cnn_hidden_size = 50
+        self.cnn_hidden_size = 8
         self.cnn_kernel_size = 3
-        self.cnn_dropout_ratio = 0.1
+        self.cnn_dropout_ratio = 0.0
         
         # unet1D model arch params
         self.unet_d_model = 16
@@ -78,16 +78,16 @@ class Params:
         
         # rnn model arch params
         self.rnn_d_model = 6
-        self.rnn_hidden_size = 50
-        self.rnn_layer = 4
-        self.rnn_dropout_ratio = 0.1
+        self.rnn_hidden_size = 8
+        self.rnn_layer = 1
+        self.rnn_dropout_ratio = 0.0
         
         # transformer model arch params
         self.transformer_d_model = 6
         self.transformer_nhead   = 2
-        self.transformer_hidden_size = 50
-        self.transformer_encoder_layers = 4
-        self.transformer_dropout_ratio = 0.1
+        self.transformer_hidden_size = 8
+        self.transformer_encoder_layers = 1
+        self.transformer_dropout_ratio = 0.0
         
         # train params
         self.num_epoch = 40
