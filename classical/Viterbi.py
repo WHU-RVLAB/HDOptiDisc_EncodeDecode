@@ -72,8 +72,10 @@ def realistic_sys(params:Params):
         
         rf_signal = disk_read_channel.RF_signal(codeword)
         equalizer_input = disk_read_channel.awgn(rf_signal, snr)
+        equalizer_input = disk_read_channel.jitter(equalizer_input, params.zeta)
         pr_signal = target_pr_channel.target_channel(codeword)
         pr_signal_noise = target_pr_channel.awgn(pr_signal, snr)
+        pr_signal_noise = target_pr_channel.jitter(pr_signal_noise, params.zeta)
         
         length = equalizer_input.shape[1]
         

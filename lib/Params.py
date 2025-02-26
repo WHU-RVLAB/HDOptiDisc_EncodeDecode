@@ -32,6 +32,9 @@ class Params:
         # awgn params
         self.truncation4energy = 5000
         
+        # jitter params
+        self.zeta = 0.1
+        
         # dataset params
         self.train_set_batches = 200
         self.test_set_batches = 100

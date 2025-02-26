@@ -10,7 +10,6 @@ from Channel_Converter import NRZI_Converter
 from Utils import plot_separated
 from Params import Params
 sys.path.pop()
-import pdb
     
 class Target_PR_Channel(object):
     
@@ -31,6 +30,15 @@ class Target_PR_Channel(object):
         E_b = np.mean(np.square(x[0, :self.params.truncation4energy]))
         sigma = np.sqrt(0.5 * E_b * 10 ** (- snr * 1.0 / 10))
         return x + sigma * np.random.normal(0, 1, x.shape)
+    
+    def jitter(self, x, zeta):
+        x_padded = np.pad(x, ((0, 0), (0, 1)), 'constant', constant_values=0)
+        x_d = np.diff(x_padded, axis=1)
+        
+        x_d_padded = np.pad(x_d, ((0, 0), (0, 1)), 'constant', constant_values=0)
+        x_d2 = np.diff(x_d_padded, axis=1)
+        
+        return x + zeta*x_d + 0.5*pow(zeta,2)*x_d2
     
 if __name__ == '__main__':
     
@@ -60,8 +68,10 @@ if __name__ == '__main__':
         codeword = NRZI_converter.forward_coding(RLL_modulator.forward_coding(info))
         pr_signal = target_pr_channel.target_channel(codeword)
         pr_signal_noise = target_pr_channel.awgn(pr_signal, snr)
+        pr_signal_jitter = target_pr_channel.jitter(pr_signal_noise, params.zeta)
         
         Xs = [
+            Normalized_t,
             Normalized_t,
             Normalized_t,
             Normalized_t
@@ -69,16 +79,19 @@ if __name__ == '__main__':
         Ys = [
             {'data': codeword.reshape(-1), 'label': 'binary Sequence'}, 
             {'data': pr_signal.reshape(-1), 'label': 'pr_signal', 'color': 'red'},
-            {'data': pr_signal_noise.reshape(-1), 'label': f'pr_signal_noise{snr}', 'color': 'red'}
+            {'data': pr_signal_noise.reshape(-1), 'label': f'pr_signal_noise{snr}', 'color': 'red'},
+            {'data': pr_signal_jitter.reshape(-1), 'label': f'pr_signal_jitter{params.zeta}', 'color': 'red'}
         ]
         titles = [
             'Binary Sequence',
             'pr_signal',
-            f'pr_signal_noise{snr}'
+            f'pr_signal_noise{snr}',
+            f'pr_signal_jitter{params.zeta}'
         ]
         xlabels = ["Time (t/T)"]
         ylabels = [
             "Binary",
+            "Amplitude",
             "Amplitude",
             "Amplitude"
         ]

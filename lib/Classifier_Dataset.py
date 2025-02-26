@@ -14,9 +14,6 @@ from lib.Utils import sliding_shape
 from lib.Channel_Modulator import RLL_Modulator
 from lib.Channel_Converter import NRZI_Converter
 from lib.Disk_Read_Channel import Disk_Read_Channel
-from lib.Channel_Modulator import RLL_Modulator
-from lib.Channel_Converter import NRZI_Converter
-from lib.Disk_Read_Channel import Disk_Read_Channel
 from lib.Params import Params
 sys.path.pop()
 
@@ -75,6 +72,7 @@ class Rawdb(object):
             codeword = self.NRZI_converter.forward_coding(self.RLL_modulator.forward_coding(info))
             rf_signal = self.disk_read_channel.RF_signal(codeword)
             equalizer_input = self.disk_read_channel.awgn(rf_signal, snr)
+            equalizer_input = self.disk_read_channel.jitter(equalizer_input, params.zeta)
             
             length = equalizer_input.shape[1]
             for signal_idx, pos in enumerate(range(0, length - params.overlap_length, params.eval_length)):
@@ -115,6 +113,7 @@ class Rawdb(object):
         codeword = self.NRZI_converter.forward_coding(self.RLL_modulator.forward_coding(info))
         rf_signal = self.disk_read_channel.RF_signal(codeword)
         equalizer_input = self.disk_read_channel.awgn(rf_signal, snr)
+        equalizer_input = self.disk_read_channel.jitter(equalizer_input, params.zeta)
         
         length = equalizer_input.shape[1]
         for signal_idx, pos in enumerate(range(0, length - params.overlap_length, params.eval_length)):

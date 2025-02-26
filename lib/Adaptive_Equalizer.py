@@ -76,6 +76,7 @@ if __name__ == '__main__':
     
     rf_signal = disk_read_channel.RF_signal(codeword)
     equalizer_input = disk_read_channel.awgn(rf_signal, params.snr_train)
+    equalizer_input = disk_read_channel.jitter(equalizer_input, params.zeta)
     
     pr_signal = target_pr_channel.target_channel(codeword)
     
@@ -173,6 +174,7 @@ if __name__ == '__main__':
     random_snr = min(max(random_snr, params.snr_start), params.snr_stop)
     
     equalizer_input = disk_read_channel.awgn(rf_signal, random_snr)
+    equalizer_input = disk_read_channel.jitter(equalizer_input, params.zeta)
     pr_signal = target_pr_channel.target_channel(codeword)
     
     length = equalizer_input.shape[1]

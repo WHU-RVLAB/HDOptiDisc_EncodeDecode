@@ -37,6 +37,15 @@ class Disk_Read_Channel(object):
         sigma = np.sqrt(0.5 * E_b * 10 ** (- snr * 1.0 / 10))
         return x + sigma * np.random.normal(0, 1, x.shape)
     
+    def jitter(self, x, zeta):
+        x_padded = np.pad(x, ((0, 0), (0, 1)), 'constant', constant_values=0)
+        x_d = np.diff(x_padded, axis=1)
+        
+        x_d_padded = np.pad(x_d, ((0, 0), (0, 1)), 'constant', constant_values=0)
+        x_d2 = np.diff(x_d_padded, axis=1)
+        
+        return x + zeta*x_d + 0.5*pow(zeta,2)*x_d2
+    
 if __name__ == '__main__':
     
     # constant and input paras
@@ -64,8 +73,10 @@ if __name__ == '__main__':
         codeword = NRZI_converter.forward_coding(RLL_modulator.forward_coding(info))
         rf_signal = disk_read_channel.RF_signal(codeword)
         equalizer_input = disk_read_channel.awgn(rf_signal, snr)
+        equalizer_input_jitter = disk_read_channel.jitter(equalizer_input, params.zeta)
         
         Xs = [
+            Normalized_t,
             Normalized_t,
             Normalized_t,
             Normalized_t
@@ -73,16 +84,19 @@ if __name__ == '__main__':
         Ys = [
            {'data': codeword.reshape(-1), 'label': 'binary Sequence'}, 
            {'data': rf_signal.reshape(-1), 'label': 'rf_signal', 'color': 'red'},
-           {'data': equalizer_input.reshape(-1), 'label': f'equalizer_input_snr{snr}', 'color': 'red'}
+           {'data': equalizer_input.reshape(-1), 'label': f'equalizer_input_snr{snr}', 'color': 'red'},
+           {'data': equalizer_input_jitter.reshape(-1), 'label': f'equalizer_input_jitter_zeta{params.zeta}', 'color': 'red'}
         ]
         titles = [
             'Binary Sequence',
             'rf_signal',
-            f'equalizer_input_snr{snr}'
+            f'equalizer_input_snr{snr}',
+            f'equalizer_input_jitter_zeta{params.zeta}',
         ]
         xlabels = ["Time (t/T)"]
         ylabels = [
             "Binary",
+            "Amplitude",
             "Amplitude",
             "Amplitude"
         ]

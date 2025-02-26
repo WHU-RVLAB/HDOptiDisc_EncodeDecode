@@ -110,6 +110,7 @@ def ai_sys():
         
         rf_signal = disk_read_channel.RF_signal(codeword)
         equalizer_input = disk_read_channel.awgn(rf_signal, snr)
+        equalizer_input = disk_read_channel.jitter(equalizer_input, params.zeta)
         
         length = equalizer_input.shape[1]
         decodeword = np.empty((1, 0))
