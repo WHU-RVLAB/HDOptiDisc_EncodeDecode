@@ -21,7 +21,7 @@ def plot_separated(Xs, Ys, titles, xlabels, ylabels, Xtick_intervals=[None], Yti
     cols = 3 if len(Ys) > 5 else 2 if len(Ys) > 3 else 1
     rows = len(Ys) // cols if len(Ys) % cols == 0 else len(Ys) // cols + 1
 
-    fig, axes = plt.subplots(rows, cols, figsize=(10, rows * 4))
+    fig, axes = plt.subplots(rows, cols, figsize=(cols * 5, rows * 4))
     axes = axes.flatten()
     
     if Xtick_intervals == [None]:
@@ -53,6 +53,18 @@ def plot_separated(Xs, Ys, titles, xlabels, ylabels, Xtick_intervals=[None], Yti
     plt.tight_layout()
     plt.show()
 
+def plot_eye_diagram(signal, samples_truncation, title, xlabel, ylabel):
+    plt.figure()
+    for i in range(0, len(signal['data'])-2*samples_truncation, samples_truncation):
+        plt.plot(signal['data'][i:i+2*samples_truncation], color=signal['color'], linestyle=signal.get('linestyle', '-'))
+    plt.title(title)
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    plt.axhline(0, color='black', linewidth=0.5)
+    plt.axvline(0, color='black', linewidth=0.5)
+    plt.grid(True)
+    plt.show()
+            
 def Fourier_Analysis(signal, sample_periods, T_L, downsample_factor = 1):
     signal = signal[::downsample_factor]
 

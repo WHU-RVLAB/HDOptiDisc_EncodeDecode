@@ -53,7 +53,7 @@ if __name__ == '__main__':
     encoder_dict, encoder_definite = RLL_state_machine()
     RLL_modulator = RLL_Modulator(encoder_dict, encoder_definite)
         
-    info = np.random.randint(2, size = (1, params.data_val_len))
+    info = np.random.randint(2, size = (1, params.module_test_len))
     codeword = RLL_modulator.forward_coding(info)
     
     print("\ninfo: ", info)

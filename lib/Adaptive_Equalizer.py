@@ -9,7 +9,7 @@ from Channel_Modulator import RLL_Modulator
 from Channel_Converter import NRZI_Converter
 from Disk_Read_Channel import Disk_Read_Channel
 from Target_PR_Channel import Target_PR_Channel
-from Utils import plot_separated
+from Utils import plot_separated, plot_eye_diagram
 from Params import Params
 sys.path.pop()
 
@@ -75,8 +75,8 @@ if __name__ == '__main__':
     codeword = NRZI_converter.forward_coding(RLL_modulator.forward_coding(train_bits))
     
     rf_signal = disk_read_channel.RF_signal(codeword)
-    equalizer_input = disk_read_channel.awgn(rf_signal, params.snr_train)
-    equalizer_input = disk_read_channel.jitter(equalizer_input, params.zeta)
+    rf_signal_jitter = disk_read_channel.jitter(rf_signal)
+    equalizer_input = disk_read_channel.awgn(rf_signal_jitter, params.snr_train)
     
     pr_signal = target_pr_channel.target_channel(codeword)
     
@@ -92,23 +92,27 @@ if __name__ == '__main__':
         Normalized_t,
         Normalized_t,
         Normalized_t,
+        Normalized_t,
         Normalized_t
     ]
     Ys = [
         {'data': codeword.reshape(-1), 'label': 'binary Sequence'}, 
         {'data': rf_signal.reshape(-1), 'label': 'rf_signal', 'color': 'red'},
+        {'data': rf_signal_jitter.reshape(-1), 'label': 'rf_signal_jitter', 'color': 'red'},
         {'data': equalizer_input.reshape(-1), 'label': f'equalizer_input_snr{params.snr_train}', 'color': 'red'},
         {'data': pr_signal.reshape(-1), 'label': 'pr_signal', 'color': 'red'},
     ]
     titles = [
         'Binary Sequence',
         'rf_signal',
+        'rf_signal_jitter',
         f'equalizer_input_snr{params.snr_train}',
         'pr_signal',
     ]
     xlabels = ["Time (t/T)"]
     ylabels = [
         "Binary",
+        "Amplitude",
         "Amplitude",
         "Amplitude",
         "Amplitude",
@@ -167,14 +171,14 @@ if __name__ == '__main__':
     codeword = NRZI_converter.forward_coding(RLL_modulator.forward_coding(info))
     
     rf_signal = disk_read_channel.RF_signal(codeword)
+    rf_signal_jitter = disk_read_channel.jitter(rf_signal)
     
     miu = (params.snr_start + params.snr_stop)/2
     sigma = (params.snr_stop - miu)/2
     random_snr = np.random.normal(miu, sigma)
     random_snr = min(max(random_snr, params.snr_start), params.snr_stop)
     
-    equalizer_input = disk_read_channel.awgn(rf_signal, random_snr)
-    equalizer_input = disk_read_channel.jitter(equalizer_input, params.zeta)
+    equalizer_input = disk_read_channel.awgn(rf_signal_jitter, random_snr)
     pr_signal = target_pr_channel.target_channel(codeword)
     
     length = equalizer_input.shape[1]
@@ -187,6 +191,7 @@ if __name__ == '__main__':
         
         codeword_truncation = codeword[:, pos:pos+params.eval_length+params.overlap_length]
         rf_signal_truncation = rf_signal[:, pos:pos+params.eval_length+params.overlap_length]
+        rf_signal_jitter_truncation = rf_signal_jitter[:, pos:pos+params.eval_length+params.overlap_length]
         equalizer_input_truncation = equalizer_input[:, pos:pos+params.eval_length+params.overlap_length]
         pr_signal_truncation = pr_signal[:, pos:pos+params.eval_length+params.overlap_length]
         detector_input = equalizer_output[:, pos:pos+params.eval_length+params.overlap_length]
@@ -201,11 +206,13 @@ if __name__ == '__main__':
             Normalized_t,
             Normalized_t,
             Normalized_t,
+            Normalized_t,
             Normalized_t
         ]
         Ys = [
             {'data': codeword_truncation.reshape(-1), 'label': 'binary Sequence'}, 
             {'data': rf_signal_truncation.reshape(-1), 'label': 'rf_signal_truncation', 'color': 'red'},
+            {'data': rf_signal_jitter_truncation.reshape(-1), 'label': 'rf_signal_jitter_truncation', 'color': 'red'},
             {'data': equalizer_input_truncation.reshape(-1), 'label': f'equalizer_input_truncation_snr{random_snr}', 'color': 'red'},
             {'data': pr_signal_truncation.reshape(-1), 'label': 'pr_signal_truncation', 'color': 'red'},
             {'data': detector_input.reshape(-1), 'label': 'detector_input', 'color': 'red'},
@@ -213,6 +220,7 @@ if __name__ == '__main__':
         titles = [
             'codeword_truncation',
             'rf_signal_truncation',
+            'rf_signal_jitter_truncation',
             f'equalizer_input_truncation_snr{random_snr}',
             'pr_signal_truncation',
             'detector_input',
@@ -220,6 +228,7 @@ if __name__ == '__main__':
         xlabels = ["Time (t/T)"]
         ylabels = [
             "Binary",
+            "Amplitude",
             "Amplitude",
             "Amplitude",
             "Amplitude",
@@ -265,5 +274,29 @@ if __name__ == '__main__':
         #     xlabels=xlabels, 
         #     ylabels=ylabels
         # )
+        
+        signal = {'data': equalizer_input_truncation.reshape(-1), 'label': 'Raw RF Signal', 'color': 'red'}
+        title = 'Before Equalizer eyes diagram'
+        xlabel = "Time (t/T)"
+        ylabel = "Amplitude"
+        plot_eye_diagram(
+            signal=signal,
+            samples_truncation=params.eye_diagram_truncation, 
+            title=title,     
+            xlabel=xlabel, 
+            ylabel=ylabel
+        )
+        
+        signal = {'data': detector_input.reshape(-1), 'label': f'Equalized signal', 'color': 'red'}
+        title = f'After Equalizer eyes diagram'
+        xlabel = "Time (t/T)"
+        ylabel = "Amplitude"
+        plot_eye_diagram(
+            signal=signal,
+            samples_truncation=params.eye_diagram_truncation, 
+            title=title,     
+            xlabel=xlabel, 
+            ylabel=ylabel
+        )
         
 

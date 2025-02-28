@@ -1,6 +1,7 @@
 import sys
 import os
 import numpy as np
+from scipy.interpolate import interp1d
 sys.path.append(
     os.path.dirname(
         os.path.abspath(__file__)))
@@ -8,10 +9,9 @@ from Const import RLL_state_machine
 from Channel_Modulator import RLL_Modulator
 from Channel_Converter import NRZI_Converter
 from Disk_Response import BD_symbol_response
-from Utils import plot_separated
+from Utils import plot_separated, plot_eye_diagram
 from Params import Params
 sys.path.pop()
-import pdb
     
 class Disk_Read_Channel(object):
     
@@ -32,19 +32,27 @@ class Disk_Read_Channel(object):
         
         return rf_signal
     
+    def jitter(self, x):
+        params = self.params
+        signal_ideal = x.reshape(-1)
+        t_ideal = np.linspace(0, len(signal_ideal), len(signal_ideal))
+        
+        # random jcl
+        miu = (params.jcl_start + params.jcl_stop)/2
+        sigma = (params.jcl_stop - miu)/2
+        jitter = np.random.normal(miu, sigma, len(signal_ideal))
+        t_jittered = t_ideal + jitter
+
+        f_interp_ideal = interp1d(t_ideal, signal_ideal, kind='linear', fill_value='extrapolate')
+        signal_jittered = f_interp_ideal(t_jittered)
+        
+        return signal_jittered.reshape(1, -1)
+    
     def awgn(self, x, snr):
         E_b = np.mean(np.square(x[0, :self.params.truncation4energy]))
         sigma = np.sqrt(0.5 * E_b * 10 ** (- snr * 1.0 / 10))
-        return x + sigma * np.random.normal(0, 1, x.shape)
-    
-    def jitter(self, x, zeta):
-        x_padded = np.pad(x, ((0, 0), (1, 0)), 'constant', constant_values=0)
-        x_d = np.diff(x_padded, axis=1)
-        
-        x_d_padded = np.pad(x_d, ((0, 0), (1, 0)), 'constant', constant_values=0)
-        x_d2 = np.diff(x_d_padded, axis=1)
-        
-        return x + zeta*x_d + 0.5*pow(zeta,2)*x_d2
+        x_noise = x + sigma * np.random.normal(0, 1, x.shape)
+        return x_noise    
     
 if __name__ == '__main__':
     
@@ -64,16 +72,16 @@ if __name__ == '__main__':
     params.snr_step = (params.snr_stop-params.snr_start)/(params.num_plots - 1)
     num_ber = int((params.snr_stop-params.snr_start)/params.snr_step + 1)
     
-    Normalized_t = np.linspace(1, int(params.data_val_len/rate_constrain), int(params.data_val_len/rate_constrain))
+    Normalized_t = np.linspace(1, int(params.module_test_len/rate_constrain), int(params.module_test_len/rate_constrain))
     
     for idx in np.arange(0, num_ber):
         snr = params.snr_start+idx*params.snr_step
         
-        info = np.random.randint(2, size = (1, params.data_val_len))
+        info = np.random.randint(2, size = (1, params.module_test_len))
         codeword = NRZI_converter.forward_coding(RLL_modulator.forward_coding(info))
         rf_signal = disk_read_channel.RF_signal(codeword)
-        equalizer_input = disk_read_channel.awgn(rf_signal, snr)
-        equalizer_input_jitter = disk_read_channel.jitter(equalizer_input, params.zeta)
+        rf_signal_jitter = disk_read_channel.jitter(rf_signal)
+        equalizer_input = disk_read_channel.awgn(rf_signal_jitter, snr)
         
         Xs = [
             Normalized_t,
@@ -84,14 +92,14 @@ if __name__ == '__main__':
         Ys = [
            {'data': codeword.reshape(-1), 'label': 'binary Sequence'}, 
            {'data': rf_signal.reshape(-1), 'label': 'rf_signal', 'color': 'red'},
-           {'data': equalizer_input.reshape(-1), 'label': f'equalizer_input_snr{snr}', 'color': 'red'},
-           {'data': equalizer_input_jitter.reshape(-1), 'label': f'equalizer_input_jitter_zeta{params.zeta}', 'color': 'red'}
+           {'data': rf_signal_jitter.reshape(-1), 'label': 'rf_signal_jitter', 'color': 'red'},
+           {'data': equalizer_input.reshape(-1), 'label': f'equalizer_input_snr{snr}', 'color': 'red'}
         ]
         titles = [
             'Binary Sequence',
             'rf_signal',
+            'rf_signal_jitter',
             f'equalizer_input_snr{snr}',
-            f'equalizer_input_jitter_zeta{params.zeta}',
         ]
         xlabels = ["Time (t/T)"]
         ylabels = [
@@ -106,4 +114,40 @@ if __name__ == '__main__':
             titles=titles,     
             xlabels=xlabels, 
             ylabels=ylabels
+        )
+                
+        signal = {'data': rf_signal.reshape(-1), 'label': 'rf_signal', 'color': 'red'}
+        title = 'rf_signal eyes diagram'
+        xlabel = "Time (t/T)"
+        ylabel = "Amplitude"
+        plot_eye_diagram(
+            signal=signal,
+            samples_truncation=params.eye_diagram_truncation, 
+            title=title,     
+            xlabel=xlabel, 
+            ylabel=ylabel
+        )
+        
+        signal = {'data': rf_signal_jitter.reshape(-1), 'label': rf_signal_jitter, 'color': 'red'}
+        title = 'rf_signal_jitter eyes diagram'
+        xlabel = "Time (t/T)"
+        ylabel = "Amplitude"
+        plot_eye_diagram(
+            signal=signal,
+            samples_truncation=params.eye_diagram_truncation, 
+            title=title,     
+            xlabel=xlabel, 
+            ylabel=ylabel
+        )
+        
+        signal = {'data': equalizer_input.reshape(-1), 'label': f'equalizer_input_snr{snr}', 'color': 'red'}
+        title = f'equalizer_input_snr{snr} eyes diagram'
+        xlabel = "Time (t/T)"
+        ylabel = "Amplitude"
+        plot_eye_diagram(
+            signal=signal,
+            samples_truncation=params.eye_diagram_truncation, 
+            title=title,     
+            xlabel=xlabel, 
+            ylabel=ylabel
         )
