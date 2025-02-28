@@ -38,10 +38,10 @@ class Disk_Read_Channel(object):
         return x + sigma * np.random.normal(0, 1, x.shape)
     
     def jitter(self, x, zeta):
-        x_padded = np.pad(x, ((0, 0), (0, 1)), 'constant', constant_values=0)
+        x_padded = np.pad(x, ((0, 0), (1, 0)), 'constant', constant_values=0)
         x_d = np.diff(x_padded, axis=1)
         
-        x_d_padded = np.pad(x_d, ((0, 0), (0, 1)), 'constant', constant_values=0)
+        x_d_padded = np.pad(x_d, ((0, 0), (1, 0)), 'constant', constant_values=0)
         x_d2 = np.diff(x_d_padded, axis=1)
         
         return x + zeta*x_d + 0.5*pow(zeta,2)*x_d2
