@@ -69,20 +69,19 @@ if __name__ == '__main__':
     disk_read_channel = Disk_Read_Channel(params)
     target_pr_channel = Target_PR_Channel(params)
     
-    Normalized_t = np.linspace(1, int(params.equalizer_train_len/rate_constrain), int(params.equalizer_train_len/rate_constrain))
+    Normalized_t = np.linspace(0, int(params.equalizer_train_len/rate_constrain) - 1, int(params.equalizer_train_len/rate_constrain))
         
     train_bits = np.random.randint(2, size = (1, params.equalizer_train_len))
     codeword = NRZI_converter.forward_coding(RLL_modulator.forward_coding(train_bits))
     
-    rf_signal = disk_read_channel.RF_signal(codeword)
-    rf_signal_jitter = disk_read_channel.jitter(rf_signal)
-    equalizer_input = disk_read_channel.awgn(rf_signal_jitter, params.snr_train)
+    signal_upsample_ideal, signal_upsample_jittered, rf_signal_ideal, rf_signal = disk_read_channel.RF_signal_jitter(codeword)
+    equalizer_input = disk_read_channel.awgn(rf_signal, params.snr_train)
     
-    pr_signal = target_pr_channel.target_channel(codeword)
+    signal_upsample_ideal, signal_upsample_jittered, pr_signal_ideal, pr_signal_real = target_pr_channel.target_channel_jitter(codeword)
     
     pr_adaptive_equalizer = Adaptive_Equalizer(        
         equalizer_input  = equalizer_input,
-        reference_signal = pr_signal,
+        reference_signal = pr_signal_ideal,
         taps_num = 15,
         mu = 0.01
     )
@@ -92,27 +91,23 @@ if __name__ == '__main__':
         Normalized_t,
         Normalized_t,
         Normalized_t,
-        Normalized_t,
         Normalized_t
     ]
     Ys = [
         {'data': codeword.reshape(-1), 'label': 'binary Sequence'}, 
         {'data': rf_signal.reshape(-1), 'label': 'rf_signal', 'color': 'red'},
-        {'data': rf_signal_jitter.reshape(-1), 'label': 'rf_signal_jitter', 'color': 'red'},
         {'data': equalizer_input.reshape(-1), 'label': f'equalizer_input_snr{params.snr_train}', 'color': 'red'},
-        {'data': pr_signal.reshape(-1), 'label': 'pr_signal', 'color': 'red'},
+        {'data': pr_signal_ideal.reshape(-1), 'label': 'pr_signal_ideal', 'color': 'red'},
     ]
     titles = [
         'Binary Sequence',
         'rf_signal',
-        'rf_signal_jitter',
         f'equalizer_input_snr{params.snr_train}',
-        'pr_signal',
+        'pr_signal_ideal',
     ]
     xlabels = ["Time (t/T)"]
     ylabels = [
         "Binary",
-        "Amplitude",
         "Amplitude",
         "Amplitude",
         "Amplitude",
@@ -170,16 +165,15 @@ if __name__ == '__main__':
     info = np.random.randint(2, size = (1, info_len))
     codeword = NRZI_converter.forward_coding(RLL_modulator.forward_coding(info))
     
-    rf_signal = disk_read_channel.RF_signal(codeword)
-    rf_signal_jitter = disk_read_channel.jitter(rf_signal)
+    signal_upsample_ideal, signal_upsample_jittered, rf_signal_ideal, rf_signal = disk_read_channel.RF_signal_jitter(codeword)
     
     miu = (params.snr_start + params.snr_stop)/2
     sigma = (params.snr_stop - miu)/2
     random_snr = np.random.normal(miu, sigma)
     random_snr = min(max(random_snr, params.snr_start), params.snr_stop)
     
-    equalizer_input = disk_read_channel.awgn(rf_signal_jitter, random_snr)
-    pr_signal = target_pr_channel.target_channel(codeword)
+    equalizer_input = disk_read_channel.awgn(rf_signal, random_snr)
+    signal_upsample_ideal, signal_upsample_jittered, pr_signal_ideal, pr_signal_real = target_pr_channel.target_channel_jitter(codeword)
     
     length = equalizer_input.shape[1]
     
@@ -191,18 +185,16 @@ if __name__ == '__main__':
         
         codeword_truncation = codeword[:, pos:pos+params.eval_length+params.overlap_length]
         rf_signal_truncation = rf_signal[:, pos:pos+params.eval_length+params.overlap_length]
-        rf_signal_jitter_truncation = rf_signal_jitter[:, pos:pos+params.eval_length+params.overlap_length]
         equalizer_input_truncation = equalizer_input[:, pos:pos+params.eval_length+params.overlap_length]
-        pr_signal_truncation = pr_signal[:, pos:pos+params.eval_length+params.overlap_length]
+        pr_signal_truncation = pr_signal_ideal[:, pos:pos+params.eval_length+params.overlap_length]
         detector_input = equalizer_output[:, pos:pos+params.eval_length+params.overlap_length]
         
         # pr_adaptive_equalizer.equalizer_input  = equalizer_input_truncation
         # pr_adaptive_equalizer.reference_signal = pr_signal_truncation
         # detector_input_train, error_signal, error_signal_square, equalizer_coeffs = pr_adaptive_equalizer.lms()
         
-        Normalized_t = np.linspace(1, params.eval_length+params.overlap_length, params.eval_length+params.overlap_length)
+        Normalized_t = np.linspace(0, params.eval_length+params.overlap_length - 1, params.eval_length+params.overlap_length)
         Xs = [
-            Normalized_t,
             Normalized_t,
             Normalized_t,
             Normalized_t,
@@ -212,7 +204,6 @@ if __name__ == '__main__':
         Ys = [
             {'data': codeword_truncation.reshape(-1), 'label': 'binary Sequence'}, 
             {'data': rf_signal_truncation.reshape(-1), 'label': 'rf_signal_truncation', 'color': 'red'},
-            {'data': rf_signal_jitter_truncation.reshape(-1), 'label': 'rf_signal_jitter_truncation', 'color': 'red'},
             {'data': equalizer_input_truncation.reshape(-1), 'label': f'equalizer_input_truncation_snr{random_snr}', 'color': 'red'},
             {'data': pr_signal_truncation.reshape(-1), 'label': 'pr_signal_truncation', 'color': 'red'},
             {'data': detector_input.reshape(-1), 'label': 'detector_input', 'color': 'red'},
@@ -220,7 +211,6 @@ if __name__ == '__main__':
         titles = [
             'codeword_truncation',
             'rf_signal_truncation',
-            'rf_signal_jitter_truncation',
             f'equalizer_input_truncation_snr{random_snr}',
             'pr_signal_truncation',
             'detector_input',
@@ -228,7 +218,6 @@ if __name__ == '__main__':
         xlabels = ["Time (t/T)"]
         ylabels = [
             "Binary",
-            "Amplitude",
             "Amplitude",
             "Amplitude",
             "Amplitude",

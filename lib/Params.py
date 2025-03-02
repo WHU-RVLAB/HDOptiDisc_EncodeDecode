@@ -15,7 +15,7 @@ class Params:
         
         # plot params
         self.num_plots = 5
-        self.eye_diagram_truncation = 2
+        self.eye_diagram_truncation = 3
         
         # equalizer params
         self.equalizer_train_len = 1000000
@@ -34,11 +34,12 @@ class Params:
         self.truncation4energy = 5000
         
         # jitter params
-        self.jcl_start = 0.03
-        self.jcl_stop = 0.07
+        self.jcl_start = 0.04
+        self.jcl_stop = 0.10
+        self.upsample_factor = 100
         
         # modules test params
-        self.module_test_len = 200
+        self.module_test_len = 100
         
         # dataset params
         self.train_set_batches = 200

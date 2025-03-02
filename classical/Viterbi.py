@@ -14,7 +14,7 @@ from lib.Channel_Converter import NRZI_Converter
 from lib.Disk_Read_Channel import Disk_Read_Channel
 from lib.Target_PR_Channel import Target_PR_Channel
 from lib.Adaptive_Equalizer import Adaptive_Equalizer
-from lib.Utils import plot_separated, find_index
+from lib.Utils import find_index
 sys.path.pop()
 
 np.random.seed(12345)
@@ -70,13 +70,11 @@ def realistic_sys(params:Params):
         info = np.random.randint(2, size = (1, params.eval_info_len + dummy_len))
         codeword = NRZI_converter.forward_coding(RLL_modulator.forward_coding(info))
         
-        rf_signal = disk_read_channel.RF_signal(codeword)
-        rf_signal_jitter = disk_read_channel.jitter(rf_signal)
-        equalizer_input = disk_read_channel.awgn(rf_signal_jitter, snr)
+        signal_upsample_ideal, signal_upsample_jittered, rf_signal_ideal, rf_signal = disk_read_channel.RF_signal_jitter(codeword)
+        equalizer_input = disk_read_channel.awgn(rf_signal, snr)
         
-        pr_signal = target_pr_channel.target_channel(codeword)
-        pr_signal_jitter = disk_read_channel.jitter(pr_signal)
-        pr_signal_noise = target_pr_channel.awgn(pr_signal_jitter, snr)
+        signal_upsample_ideal, signal_upsample_jittered, pr_signal_ideal, pr_signal_real = target_pr_channel.target_channel_jitter(codeword)
+        pr_signal_noise = target_pr_channel.awgn(pr_signal_real, snr)
         
         length = equalizer_input.shape[1]
         
@@ -105,7 +103,7 @@ def realistic_sys(params:Params):
             # pr_adaptive_equalizer.reference_signal = pr_signal_truncation
             # detector_input_train, error_signal, error_signal_square, equalizer_coeffs = pr_adaptive_equalizer.lms()
             
-            # Normalized_t = np.linspace(1, params.eval_length+params.overlap_length, params.eval_length+params.overlap_length)
+            # Normalized_t = np.linspace(0, params.eval_length+params.overlap_length -1, params.eval_length+params.overlap_length)
             # Xs = [
             #     Normalized_t,
             #     Normalized_t,

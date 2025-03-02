@@ -1,7 +1,6 @@
 import sys
 import os
 import numpy as np
-from scipy.interpolate import interp1d
 sys.path.append(
     os.path.dirname(
         os.path.abspath(__file__)))
@@ -17,36 +16,55 @@ class Disk_Read_Channel(object):
     
     def __init__(self, params:Params):
         self.params = params
-        _, bd_di_coef = BD_symbol_response(bit_periods = 10)
+        upsample_factor = params.upsample_factor
+        _, bd_di_coef = BD_symbol_response(bit_periods = 10, upsample_factor=upsample_factor)
         mid_idx = len(bd_di_coef)//2
-        self.bd_di_coef = bd_di_coef[mid_idx : mid_idx + self.params.tap_bd_num].reshape(1,-1)
+        self.bd_di_coef = bd_di_coef[mid_idx : mid_idx + upsample_factor*self.params.tap_bd_num].reshape(1,-1)
         
         print('\nThe dipulse bd coefficient is')
         print(bd_di_coef)
+        print(f"bd_di_coef.shape: {bd_di_coef.shape}")
         print('\nTap bd coefficient is')
         print(self.bd_di_coef)
+        print(f"self.bd_di_coef.shape: {self.bd_di_coef.shape}")
     
-    def RF_signal(self, codeword):
-        rf_signal = (np.convolve(self.bd_di_coef[0, :], codeword[0, :])
-               [:-(self.params.tap_bd_num - 1)].reshape(codeword.shape))
-        
-        return rf_signal
-    
-    def jitter(self, x):
+    def RF_signal_jitter(self, codeword):
         params = self.params
-        signal_ideal = x.reshape(-1)
-        t_ideal = np.linspace(0, len(signal_ideal), len(signal_ideal))
+        signal_ideal = codeword.reshape(-1)
+        signal_ideal_pad = np.concatenate([[0], signal_ideal])
+        signal_ideal_diff = np.diff(signal_ideal_pad)
         
-        # random jcl
-        miu = (params.jcl_start + params.jcl_stop)/2
-        sigma = (params.jcl_stop - miu)/2
-        jitter = np.random.normal(miu, sigma, len(signal_ideal))
-        t_jittered = t_ideal + jitter
+        upsample_factor = params.upsample_factor
+        signal_upsample_ideal = np.repeat(signal_ideal, upsample_factor)
+        
+        max_jcl, min_jcl = upsample_factor*params.jcl_stop, upsample_factor*params.jcl_start
+        miu = (max_jcl + min_jcl)/2
+        sigma = (max_jcl - miu)/3
+        upsample_jitter = np.zeros(len(signal_ideal)).astype(int)
+        for i in range(1, len(signal_ideal)):# not consider the first signal
+            if signal_ideal_diff[i]:
+                random_jitter = np.random.normal(miu, sigma)*np.random.choice([-1, 1])
+                upsample_jitter[i] = np.round(random_jitter).astype(int)
+                upsample_jitter[i-1] = -upsample_jitter[i]
+        
+        # print(np.mean(upsample_jitter))
+        upsample_jitter += upsample_factor
+        
+        signal_upsample_jittered = np.repeat(signal_ideal, upsample_jitter).reshape(1, -1)
 
-        f_interp_ideal = interp1d(t_ideal, signal_ideal, kind='linear', fill_value='extrapolate')
-        signal_jittered = f_interp_ideal(t_jittered)
+        downsample_factor = upsample_factor
+        bd_di_coef_sum = sum(self.bd_di_coef[0, :][::downsample_factor])
+        bd_di_coef_upsample_sum = sum(self.bd_di_coef[0, :])
         
-        return signal_jittered.reshape(1, -1)
+        rf_signal_ideal = (np.convolve(self.bd_di_coef[0, :][::downsample_factor], codeword[0, :])
+               [:-(self.params.tap_bd_num - 1)].reshape(codeword.shape))/bd_di_coef_sum
+        
+        rf_signal = (np.convolve(self.bd_di_coef[0, :], signal_upsample_jittered[0, :])
+               [:-(upsample_factor*self.params.tap_bd_num - 1)].reshape(signal_upsample_jittered.shape))/bd_di_coef_upsample_sum
+        
+        rf_signal = rf_signal[:, ::downsample_factor]
+        
+        return signal_upsample_ideal, signal_upsample_jittered, rf_signal_ideal, rf_signal
     
     def awgn(self, x, snr):
         E_b = np.mean(np.square(x[0, :self.params.truncation4energy]))
@@ -72,38 +90,59 @@ if __name__ == '__main__':
     params.snr_step = (params.snr_stop-params.snr_start)/(params.num_plots - 1)
     num_ber = int((params.snr_stop-params.snr_start)/params.snr_step + 1)
     
-    Normalized_t = np.linspace(1, int(params.module_test_len/rate_constrain), int(params.module_test_len/rate_constrain))
+    Normalized_t = np.linspace(0, int(params.module_test_len/rate_constrain) - 1, int(params.module_test_len/rate_constrain))
+    Normalized_t_upsample = np.linspace(0, int(params.module_test_len/rate_constrain) - 1/params.upsample_factor, params.upsample_factor*int(params.module_test_len/rate_constrain))
     
     for idx in np.arange(0, num_ber):
         snr = params.snr_start+idx*params.snr_step
         
         info = np.random.randint(2, size = (1, params.module_test_len))
         codeword = NRZI_converter.forward_coding(RLL_modulator.forward_coding(info))
-        rf_signal = disk_read_channel.RF_signal(codeword)
-        rf_signal_jitter = disk_read_channel.jitter(rf_signal)
-        equalizer_input = disk_read_channel.awgn(rf_signal_jitter, snr)
+        signal_upsample_ideal, signal_upsample_jittered, rf_signal_ideal, rf_signal = disk_read_channel.RF_signal_jitter(codeword)
+        equalizer_input = disk_read_channel.awgn(rf_signal, snr)
         
         Xs = [
-            Normalized_t,
+            Normalized_t_upsample,
+            Normalized_t_upsample
+        ]
+        Ys = [
+        {'data': signal_upsample_ideal.reshape(-1), 'label': 'signal_upsample_ideal', 'color': 'red'}, 
+        {'data': signal_upsample_jittered.reshape(-1), 'label': 'signal_upsample_jittered', 'color': 'red'}
+        ]
+        titles = [
+            'signal_upsample_ideal',
+            'signal_upsample_jittered'
+        ]
+        xlabels = ["Time (t/T)"]
+        ylabels = [
+            "Binary",
+            "Binary"
+        ]
+        plot_separated(
+            Xs=Xs, 
+            Ys=Ys, 
+            titles=titles,     
+            xlabels=xlabels, 
+            ylabels=ylabels
+        )
+        
+        Xs = [
             Normalized_t,
             Normalized_t,
             Normalized_t
         ]
         Ys = [
-           {'data': codeword.reshape(-1), 'label': 'binary Sequence'}, 
+           {'data': rf_signal_ideal.reshape(-1), 'label': 'rf_signal_ideal', 'color': 'red'},
            {'data': rf_signal.reshape(-1), 'label': 'rf_signal', 'color': 'red'},
-           {'data': rf_signal_jitter.reshape(-1), 'label': 'rf_signal_jitter', 'color': 'red'},
            {'data': equalizer_input.reshape(-1), 'label': f'equalizer_input_snr{snr}', 'color': 'red'}
         ]
         titles = [
-            'Binary Sequence',
+            'rf_signal_ideal',
             'rf_signal',
-            'rf_signal_jitter',
             f'equalizer_input_snr{snr}',
         ]
         xlabels = ["Time (t/T)"]
         ylabels = [
-            "Binary",
             "Amplitude",
             "Amplitude",
             "Amplitude"
@@ -115,9 +154,9 @@ if __name__ == '__main__':
             xlabels=xlabels, 
             ylabels=ylabels
         )
-                
-        signal = {'data': rf_signal.reshape(-1), 'label': 'rf_signal', 'color': 'red'}
-        title = 'rf_signal eyes diagram'
+        
+        signal = {'data': rf_signal_ideal.reshape(-1), 'label': 'rf_signal_ideal', 'color': 'red'}
+        title = 'rf_signal_ideal eyes diagram'
         xlabel = "Time (t/T)"
         ylabel = "Amplitude"
         plot_eye_diagram(
@@ -127,9 +166,9 @@ if __name__ == '__main__':
             xlabel=xlabel, 
             ylabel=ylabel
         )
-        
-        signal = {'data': rf_signal_jitter.reshape(-1), 'label': rf_signal_jitter, 'color': 'red'}
-        title = 'rf_signal_jitter eyes diagram'
+            
+        signal = {'data': rf_signal.reshape(-1), 'label': 'rf_signal', 'color': 'red'}
+        title = 'rf_signal eyes diagram'
         xlabel = "Time (t/T)"
         ylabel = "Amplitude"
         plot_eye_diagram(

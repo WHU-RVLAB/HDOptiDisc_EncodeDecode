@@ -11,7 +11,7 @@ sys.path.pop()
 def sinc(x):
     return np.sinc(x / np.pi)
 
-def partial_response(PR_coefs, bit_periods, T_L, upsample_factor = 1):
+def partial_response(PR_coefs, bit_periods, T_L = 74.5e-9, upsample_factor = 1):
     t = np.linspace(-bit_periods * T_L, bit_periods * T_L, int(2*upsample_factor*bit_periods + 1))
     
     target_pr = np.zeros_like(t)
