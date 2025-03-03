@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+from scipy.interpolate import CubicSpline
 import numpy as np
 
 def plot_altogether(X, Ys, title, xlabel, ylabel, xtick_interval=None, ytick_interval=None):
@@ -53,16 +54,23 @@ def plot_separated(Xs, Ys, titles, xlabels, ylabels, Xtick_intervals=[None], Yti
     plt.tight_layout()
     plt.show()
 
-def plot_eye_diagram(signal, samples_truncation, title, xlabel, ylabel):
+def plot_eye_diagram(signal, samples_truncation, title, xlabel, ylabel, smooth_factor=10):
+    time_original = np.linspace(0, 2, samples_truncation*2)
+    time_smooth = np.linspace(0, 2, samples_truncation*2*smooth_factor)
     plt.figure()
     for i in range(0, len(signal['data'])-2*samples_truncation, samples_truncation):
-        plt.plot(signal['data'][i:i+2*samples_truncation], color=signal['color'], linestyle=signal.get('linestyle', '-'))
-    plt.title(title)
-    plt.xlabel(xlabel)
-    plt.ylabel(ylabel)
-    plt.axhline(0, color='black', linewidth=0.5)
-    plt.axvline(0, color='black', linewidth=0.5)
-    plt.grid(True)
+        signal_truncation = signal['data'][i:i+2*samples_truncation]
+        cs = CubicSpline(time_original, signal_truncation)
+        smoothed_signal = cs(time_smooth)
+        plt.plot(time_smooth, smoothed_signal, color=signal['color'], linestyle=signal.get('linestyle', '-'))   
+    plt.axhline(0, color='black', linestyle='--', linewidth=0.8, alpha=0.5)
+    plt.axvline(1, color='red', linestyle=':', linewidth=1.2, alpha=0.6) 
+    plt.title(title, fontsize=12, pad=20)
+    plt.xlabel(xlabel, fontsize=10)
+    plt.ylabel(ylabel, fontsize=10)
+    plt.grid(True, linestyle=':', alpha=0.3)
+    plt.xlim(0.25, 1.75) 
+    plt.tight_layout()
     plt.show()
             
 def Fourier_Analysis(signal, sample_periods, T_L, downsample_factor = 1):

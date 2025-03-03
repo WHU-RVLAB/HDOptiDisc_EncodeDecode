@@ -160,7 +160,7 @@ if __name__ == '__main__':
             ylabels=ylabels
         )
         
-        signal = {'data': pr_signal_ideal.reshape(-1), 'label': 'pr_signal_ideal', 'color': 'red'}
+        signal = {'data': pr_signal_ideal.reshape(-1), 'label': 'pr_signal_ideal', 'color': 'black'}
         title = 'pr_signal_ideal eyes diagram'
         xlabel = "Time (t/T)"
         ylabel = "Amplitude"
@@ -172,7 +172,7 @@ if __name__ == '__main__':
             ylabel=ylabel
         )
         
-        signal = {'data': pr_signal_real.reshape(-1), 'label': 'pr_signal_real', 'color': 'red'}
+        signal = {'data': pr_signal_real.reshape(-1), 'label': 'pr_signal_real', 'color': 'black'}
         title = 'pr_signal_real eyes diagram'
         xlabel = "Time (t/T)"
         ylabel = "Amplitude"
@@ -184,7 +184,7 @@ if __name__ == '__main__':
             ylabel=ylabel
         )
 
-        signal = {'data': pr_signal_noise.reshape(-1), 'label': f'pr_signal_noise{snr}', 'color': 'red'}
+        signal = {'data': pr_signal_noise.reshape(-1), 'label': f'pr_signal_noise{snr}', 'color': 'black'}
         title = f'pr_signal_noise{snr} eyes diagram'
         xlabel = "Time (t/T)"
         ylabel = "Amplitude"

@@ -281,7 +281,7 @@ if __name__ == '__main__':
         #     ylabels=ylabels
         # )
         
-        signal = {'data': equalizer_input_truncation.reshape(-1), 'label': 'Raw RF Signal', 'color': 'red'}
+        signal = {'data': equalizer_input_truncation.reshape(-1), 'label': 'Raw RF Signal', 'color': 'black'}
         title = 'Before Equalizer eyes diagram'
         xlabel = "Time (t/T)"
         ylabel = "Amplitude"
@@ -293,7 +293,7 @@ if __name__ == '__main__':
             ylabel=ylabel
         )
         
-        signal = {'data': detector_input.reshape(-1), 'label': f'Equalized signal', 'color': 'red'}
+        signal = {'data': detector_input.reshape(-1), 'label': f'Equalized signal', 'color': 'black'}
         title = f'After Equalizer eyes diagram'
         xlabel = "Time (t/T)"
         ylabel = "Amplitude"

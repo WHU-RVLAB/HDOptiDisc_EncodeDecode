@@ -158,7 +158,7 @@ if __name__ == '__main__':
             ylabels=ylabels
         )
         
-        signal = {'data': rf_signal_ideal.reshape(-1), 'label': 'rf_signal_ideal', 'color': 'red'}
+        signal = {'data': rf_signal_ideal.reshape(-1), 'label': 'rf_signal_ideal', 'color': 'black'}
         title = 'rf_signal_ideal eyes diagram'
         xlabel = "Time (t/T)"
         ylabel = "Amplitude"
@@ -170,7 +170,7 @@ if __name__ == '__main__':
             ylabel=ylabel
         )
             
-        signal = {'data': rf_signal.reshape(-1), 'label': 'rf_signal', 'color': 'red'}
+        signal = {'data': rf_signal.reshape(-1), 'label': 'rf_signal', 'color': 'black'}
         title = 'rf_signal eyes diagram'
         xlabel = "Time (t/T)"
         ylabel = "Amplitude"
@@ -182,7 +182,7 @@ if __name__ == '__main__':
             ylabel=ylabel
         )
         
-        signal = {'data': equalizer_input.reshape(-1), 'label': f'equalizer_input_snr{snr}', 'color': 'red'}
+        signal = {'data': equalizer_input.reshape(-1), 'label': f'equalizer_input_snr{snr}', 'color': 'black'}
         title = f'equalizer_input_snr{snr} eyes diagram'
         xlabel = "Time (t/T)"
         ylabel = "Amplitude"
