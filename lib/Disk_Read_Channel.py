@@ -55,6 +55,9 @@ class Disk_Read_Channel(object):
         downsample_factor = upsample_factor
         bd_di_coef_sum = sum(self.bd_di_coef[0, :][::downsample_factor])
         bd_di_coef_upsample_sum = sum(self.bd_di_coef[0, :])
+        if not params.signal_norm:
+            bd_di_coef_upsample_sum /= bd_di_coef_sum
+            bd_di_coef_sum = 1
         
         rf_signal_ideal = (np.convolve(self.bd_di_coef[0, :][::downsample_factor], codeword[0, :])
                [:-(self.params.tap_bd_num - 1)].reshape(codeword.shape))/bd_di_coef_sum

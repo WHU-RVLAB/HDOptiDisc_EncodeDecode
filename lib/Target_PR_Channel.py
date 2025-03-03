@@ -56,6 +56,9 @@ class Target_PR_Channel(object):
         downsample_factor = upsample_factor
         PR_coefs_sum = sum(self.PR_coefs[0, :][::downsample_factor])
         PR_coefs_upsample_sum = sum(self.PR_coefs[0, :])
+        if not params.signal_norm:
+            PR_coefs_upsample_sum /= PR_coefs_sum
+            PR_coefs_sum = 1
         
         pr_signal_ideal = (np.convolve(self.PR_coefs[0, :][::downsample_factor], codeword[0, :])
                [:-(len(self.params.PR_coefs) - 1)].reshape(codeword.shape))/PR_coefs_sum
