@@ -71,10 +71,18 @@ def realistic_sys(params:Params):
         codeword = NRZI_converter.forward_coding(RLL_modulator.forward_coding(info))
         
         signal_upsample_ideal, signal_upsample_jittered, rf_signal_ideal, rf_signal = disk_read_channel.RF_signal_jitter(codeword)
-        equalizer_input = disk_read_channel.awgn(rf_signal, snr)
+        if params.only_awgn:
+            rf_signal_input = rf_signal_ideal
+        else:
+            rf_signal_input = rf_signal
+        equalizer_input = disk_read_channel.awgn(rf_signal_input, snr)
         
         signal_upsample_ideal, signal_upsample_jittered, pr_signal_ideal, pr_signal_real = target_pr_channel.target_channel_jitter(codeword)
-        pr_signal_noise = target_pr_channel.awgn(pr_signal_real, snr)
+        if params.only_awgn:
+            pr_signal_input = pr_signal_ideal
+        else:
+            pr_signal_input = pr_signal_real
+        pr_signal_noise = target_pr_channel.awgn(pr_signal_input, snr)
         
         length = equalizer_input.shape[1]
         

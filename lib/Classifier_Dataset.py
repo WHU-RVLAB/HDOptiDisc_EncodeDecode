@@ -71,7 +71,11 @@ class Rawdb(object):
             
             codeword = self.NRZI_converter.forward_coding(self.RLL_modulator.forward_coding(info))
             signal_upsample_ideal, signal_upsample_jittered, rf_signal_ideal, rf_signal = self.disk_read_channel.RF_signal_jitter(codeword)
-            equalizer_input = self.disk_read_channel.awgn(rf_signal, snr)
+            if params.only_awgn:
+                rf_signal_input = rf_signal_ideal
+            else:
+                rf_signal_input = rf_signal
+            equalizer_input = self.disk_read_channel.awgn(rf_signal_input, snr)
             
             length = equalizer_input.shape[1]
             for signal_idx, pos in enumerate(range(0, length - params.overlap_length, params.eval_length)):
@@ -111,7 +115,11 @@ class Rawdb(object):
         
         codeword = self.NRZI_converter.forward_coding(self.RLL_modulator.forward_coding(info))
         signal_upsample_ideal, signal_upsample_jittered, rf_signal_ideal, rf_signal = self.disk_read_channel.RF_signal_jitter(codeword)
-        equalizer_input = self.disk_read_channel.awgn(rf_signal, snr)
+        if params.only_awgn:
+            rf_signal_input = rf_signal_ideal
+        else:
+            rf_signal_input = rf_signal
+        equalizer_input = self.disk_read_channel.awgn(rf_signal_input, snr)
         
         length = equalizer_input.shape[1]
         for signal_idx, pos in enumerate(range(0, length - params.overlap_length, params.eval_length)):

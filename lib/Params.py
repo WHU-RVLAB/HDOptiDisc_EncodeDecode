@@ -26,6 +26,7 @@ class Params:
         
         # rf channel params
         self.tap_bd_num = 6
+        self.only_awgn = False
         
         # target channel params
         self.PR_coefs = [1, 2, 2, 2, 1]

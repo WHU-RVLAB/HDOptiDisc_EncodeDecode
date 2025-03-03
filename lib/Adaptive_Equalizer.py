@@ -75,7 +75,11 @@ if __name__ == '__main__':
     codeword = NRZI_converter.forward_coding(RLL_modulator.forward_coding(train_bits))
     
     signal_upsample_ideal, signal_upsample_jittered, rf_signal_ideal, rf_signal = disk_read_channel.RF_signal_jitter(codeword)
-    equalizer_input = disk_read_channel.awgn(rf_signal, params.snr_train)
+    if params.only_awgn:
+        rf_signal_input = rf_signal_ideal
+    else:
+        rf_signal_input = rf_signal
+    equalizer_input = disk_read_channel.awgn(rf_signal_input, params.snr_train)
     
     signal_upsample_ideal, signal_upsample_jittered, pr_signal_ideal, pr_signal_real = target_pr_channel.target_channel_jitter(codeword)
     
@@ -91,16 +95,19 @@ if __name__ == '__main__':
         Normalized_t,
         Normalized_t,
         Normalized_t,
+        Normalized_t,
         Normalized_t
     ]
     Ys = [
         {'data': codeword.reshape(-1), 'label': 'binary Sequence'}, 
+        {'data': rf_signal_ideal.reshape(-1), 'label': 'rf_signal_ideal', 'color': 'red'},
         {'data': rf_signal.reshape(-1), 'label': 'rf_signal', 'color': 'red'},
         {'data': equalizer_input.reshape(-1), 'label': f'equalizer_input_snr{params.snr_train}', 'color': 'red'},
         {'data': pr_signal_ideal.reshape(-1), 'label': 'pr_signal_ideal', 'color': 'red'},
     ]
     titles = [
         'Binary Sequence',
+        'rf_signal_ideal',
         'rf_signal',
         f'equalizer_input_snr{params.snr_train}',
         'pr_signal_ideal',
@@ -108,6 +115,7 @@ if __name__ == '__main__':
     xlabels = ["Time (t/T)"]
     ylabels = [
         "Binary",
+        "Amplitude",
         "Amplitude",
         "Amplitude",
         "Amplitude",
@@ -172,7 +180,11 @@ if __name__ == '__main__':
     random_snr = np.random.normal(miu, sigma)
     random_snr = min(max(random_snr, params.snr_start), params.snr_stop)
     
-    equalizer_input = disk_read_channel.awgn(rf_signal, random_snr)
+    if params.only_awgn:
+        rf_signal_input = rf_signal_ideal
+    else:
+        rf_signal_input = rf_signal
+    equalizer_input = disk_read_channel.awgn(rf_signal_input, random_snr)
     signal_upsample_ideal, signal_upsample_jittered, pr_signal_ideal, pr_signal_real = target_pr_channel.target_channel_jitter(codeword)
     
     length = equalizer_input.shape[1]
@@ -184,6 +196,7 @@ if __name__ == '__main__':
     for pos in range(0, length - params.overlap_length, params.eval_length):
         
         codeword_truncation = codeword[:, pos:pos+params.eval_length+params.overlap_length]
+        rf_signal_ideal_truncation = rf_signal_ideal[:, pos:pos+params.eval_length+params.overlap_length]
         rf_signal_truncation = rf_signal[:, pos:pos+params.eval_length+params.overlap_length]
         equalizer_input_truncation = equalizer_input[:, pos:pos+params.eval_length+params.overlap_length]
         pr_signal_truncation = pr_signal_ideal[:, pos:pos+params.eval_length+params.overlap_length]
@@ -199,10 +212,12 @@ if __name__ == '__main__':
             Normalized_t,
             Normalized_t,
             Normalized_t,
+            Normalized_t,
             Normalized_t
         ]
         Ys = [
             {'data': codeword_truncation.reshape(-1), 'label': 'binary Sequence'}, 
+            {'data': rf_signal_ideal_truncation.reshape(-1), 'label': 'rf_signal_ideal_truncation', 'color': 'red'},
             {'data': rf_signal_truncation.reshape(-1), 'label': 'rf_signal_truncation', 'color': 'red'},
             {'data': equalizer_input_truncation.reshape(-1), 'label': f'equalizer_input_truncation_snr{random_snr}', 'color': 'red'},
             {'data': pr_signal_truncation.reshape(-1), 'label': 'pr_signal_truncation', 'color': 'red'},
@@ -210,6 +225,7 @@ if __name__ == '__main__':
         ]
         titles = [
             'codeword_truncation',
+            'rf_signal_ideal_truncation',
             'rf_signal_truncation',
             f'equalizer_input_truncation_snr{random_snr}',
             'pr_signal_truncation',
@@ -218,6 +234,7 @@ if __name__ == '__main__':
         xlabels = ["Time (t/T)"]
         ylabels = [
             "Binary",
+            "Amplitude",
             "Amplitude",
             "Amplitude",
             "Amplitude",

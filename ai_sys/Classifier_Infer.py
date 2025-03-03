@@ -109,7 +109,11 @@ def ai_sys():
         codeword = NRZI_converter.forward_coding(RLL_modulator.forward_coding(info))
         
         signal_upsample_ideal, signal_upsample_jittered, rf_signal_ideal, rf_signal = disk_read_channel.RF_signal_jitter(codeword)
-        equalizer_input = disk_read_channel.awgn(rf_signal, snr)
+        if params.only_awgn:
+            rf_signal_input = rf_signal_ideal
+        else:
+            rf_signal_input = rf_signal
+        equalizer_input = disk_read_channel.awgn(rf_signal_input, snr)
         
         length = equalizer_input.shape[1]
         decodeword = np.empty((1, 0))
