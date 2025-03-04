@@ -24,6 +24,8 @@ def realistic_sys(params:Params):
     # constant and input paras
     encoder_dict, encoder_definite = RLL_state_machine()
     channel_dict = Target_channel_state_machine()
+    if params.signal_norm:
+        channel_dict['in_out'][:, 1] /= sum(params.PR_coefs)
 
     # Initial metric 
     ini_metric = 1000 * np.ones((channel_dict['num_state'], 1))

@@ -32,6 +32,8 @@ def ai_sys():
     # constant and input paras
     encoder_dict, encoder_definite = RLL_state_machine()
     channel_dict = Target_channel_state_machine()
+    if params.signal_norm:
+        channel_dict['in_out'][:, 1] /= sum(params.PR_coefs)
     
     # rate for constrained code
     num_sym_in_constrain = encoder_dict[1]['input'].shape[1]
