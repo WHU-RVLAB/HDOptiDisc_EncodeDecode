@@ -13,6 +13,8 @@ from Utils import plot_separated, plot_eye_diagram
 from Params import Params
 sys.path.pop()
 
+np.random.seed(12345)
+
 class Adaptive_Equalizer(object):
     
     def __init__(self, equalizer_input, reference_signal, taps_num, mu):
@@ -75,12 +77,17 @@ if __name__ == '__main__':
     codeword = NRZI_converter.forward_coding(RLL_modulator.forward_coding(train_bits))
     
     signal_upsample_ideal, signal_upsample_jittered, rf_signal_ideal, rf_signal = disk_read_channel.RF_signal_jitter(codeword)
-    if params.only_awgn:
-        rf_signal_input = rf_signal_ideal
-    else:
+
+    if params.jitteron:
         rf_signal_input = rf_signal
+    else:
+        rf_signal_input = rf_signal_ideal
+
     equalizer_input = disk_read_channel.awgn(rf_signal_input, params.snr_train)
-    
+
+    if params.addsineon:
+        equalizer_input = disk_read_channel.addsin(equalizer_input)
+
     signal_upsample_ideal, signal_upsample_jittered, pr_signal_ideal, pr_signal_real = target_pr_channel.target_channel_jitter(codeword)
     
     pr_adaptive_equalizer = Adaptive_Equalizer(        
@@ -160,13 +167,36 @@ if __name__ == '__main__':
         xlabels=xlabels, 
         ylabels=ylabels
     )
-    
-    # save equalizer_coeffs to txt
-    if not os.path.exists(params.equalizer_coeffs_dir):
-        os.makedirs(params.equalizer_coeffs_dir)
-    np.savetxt(params.equalizer_coeffs_file, pr_adaptive_equalizer.equalizer_coeffs)
-    print(f"save equalizer_coeffs to txt files:{params.equalizer_coeffs_file}")
-    print(f"equalizer_coeffs are {pr_adaptive_equalizer.equalizer_coeffs}")
+
+    if params.jitteron == True and params.addsineon == True:
+        # save equalizer_coeffs to txt
+        if not os.path.exists(params.equalizer_coeffs_dir):
+            os.makedirs(params.equalizer_coeffs_dir)
+        np.savetxt(params.equalizer_coeffs_jitter_sine_file, pr_adaptive_equalizer.equalizer_coeffs)
+        print(f"save equalizer_coeffs to txt files:{params.equalizer_coeffs_jitter_sine_file}")
+        print(f"equalizer_coeffs are {pr_adaptive_equalizer.equalizer_coeffs}")
+    elif params.jitteron == True and params.addsineon == False:
+        # save equalizer_coeffs to txt
+        if not os.path.exists(params.equalizer_coeffs_dir):
+            os.makedirs(params.equalizer_coeffs_dir)
+        np.savetxt(params.equalizer_coeffs_jitter_file, pr_adaptive_equalizer.equalizer_coeffs)
+        print(f"save equalizer_coeffs to txt files:{params.equalizer_coeffs_jitter_file}")
+        print(f"equalizer_coeffs are {pr_adaptive_equalizer.equalizer_coeffs}")
+    elif params.jitteron == False and params.addsineon == True:
+        # save equalizer_coeffs to txt
+        if not os.path.exists(params.equalizer_coeffs_dir):
+            os.makedirs(params.equalizer_coeffs_dir)
+        np.savetxt(params.equalizer_coeffs_sine_file, pr_adaptive_equalizer.equalizer_coeffs)
+        print(f"save equalizer_coeffs to txt files:{params.equalizer_coeffs_sine_file}")
+        print(f"equalizer_coeffs are {pr_adaptive_equalizer.equalizer_coeffs}")
+    elif params.jitteron == False and params.addsineon == False:
+        # save equalizer_coeffs to txt
+        if not os.path.exists(params.equalizer_coeffs_dir):
+            os.makedirs(params.equalizer_coeffs_dir)
+        np.savetxt(params.equalizer_coeffs_file, pr_adaptive_equalizer.equalizer_coeffs)
+        print(f"save equalizer_coeffs to txt files:{params.equalizer_coeffs_file}")
+        print(f"equalizer_coeffs are {pr_adaptive_equalizer.equalizer_coeffs}")
+
 
     # validate  
     info_len = int((params.num_plots*params.eval_length + params.overlap_length)*rate_constrain)
@@ -179,12 +209,17 @@ if __name__ == '__main__':
     sigma = (params.snr_stop - miu)/2
     random_snr = np.random.normal(miu, sigma)
     random_snr = min(max(random_snr, params.snr_start), params.snr_stop)
-    
-    if params.only_awgn:
-        rf_signal_input = rf_signal_ideal
-    else:
+
+    if params.jitteron:
         rf_signal_input = rf_signal
+    else:
+        rf_signal_input = rf_signal_ideal
+
     equalizer_input = disk_read_channel.awgn(rf_signal_input, random_snr)
+
+    if params.addsineon:
+        equalizer_input = disk_read_channel.addsin(equalizer_input)
+
     signal_upsample_ideal, signal_upsample_jittered, pr_signal_ideal, pr_signal_real = target_pr_channel.target_channel_jitter(codeword)
     
     length = equalizer_input.shape[1]

@@ -11,6 +11,9 @@ class Params:
         self.model_dir = "../model/"
         self.result_file = 'result.txt'
         self.equalizer_coeffs_dir = "../data"
+        self.equalizer_coeffs_jitter_sine_file = "../data/equalizer_coeffs_jitter_sine.txt"
+        self.equalizer_coeffs_jitter_file = "../data/equalizer_coeffs_jitter.txt"
+        self.equalizer_coeffs_sine_file = "../data/equalizer_coeffs_sine.txt"
         self.equalizer_coeffs_file = "../data/equalizer_coeffs.txt"
         
         # plot params
@@ -18,15 +21,16 @@ class Params:
         self.eye_diagram_truncation = 3
         
         # equalizer params
-        self.equalizer_train_len = 1000000
-        self.snr_train = 20 # add noise while train equalizer
+        self.equalizer_train_len = 50000
+        self.snr_train = 30 # add noise while train equalizer
         
         # detector/decoder params
         self.eval_info_len = 1000000
         
         # rf channel params
         self.tap_bd_num = 6
-        self.only_awgn = False
+        self.jitteron = False
+        self.addsineon = True
         self.signal_norm = True
         
         # target channel params
@@ -41,7 +45,7 @@ class Params:
         self.upsample_factor = 100
         
         # modules test params
-        self.module_test_len = 100
+        self.module_test_len = 1000
         
         # dataset params
         self.train_set_batches = 200

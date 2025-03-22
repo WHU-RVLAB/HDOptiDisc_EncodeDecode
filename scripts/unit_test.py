@@ -1,7 +1,7 @@
 import os
 import subprocess
 
-def unittest(directory):
+def unit_test(directory):
     for root, dirs, files in os.walk(directory):
         for file in files:
             if file.endswith(".py"):
@@ -22,6 +22,6 @@ def unittest(directory):
 
 if __name__ == "__main__":
     project_directory = "../lib"
-    unittest(project_directory)
+    unit_test(project_directory)
     project_directory = "../classical"
-    unittest(project_directory)
+    unit_test(project_directory)
