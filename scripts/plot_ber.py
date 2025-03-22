@@ -40,14 +40,14 @@ if __name__ == '__main__':
     for idx, file_path in enumerate(files):
         
         filename = os.path.basename(file_path)
-        label = filename.split('_')[0]
+        label = filename.split('_')[0:-1]
         
         with open(file_path, 'r', encoding='utf-8') as file:
             data = file.read().splitlines()
             data = [float(item) for item in data]
         
         data = np.array(data, dtype=np.float64)
-        data = np.where(data <= 0, 1e-10, data)
+        data = np.where(data <= 1e-10, 1e-10, data)
         data = np.log10(data)
         
         color = colors[idx % len(colors)]

@@ -5,3 +5,4 @@ reference/
 data/
 model/
 backup/
+.idea/*

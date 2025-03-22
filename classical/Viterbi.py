@@ -45,7 +45,7 @@ def realistic_sys(params:Params):
     disk_read_channel = Disk_Read_Channel(params)
     target_pr_channel = Target_PR_Channel(params)
     viterbi_detector = Viterbi(params, channel_dict, ini_metric)
-    viterbi_detector_pr = Viterbi(params, channel_dict, ini_metric)
+    #viterbi_detector_pr = Viterbi(params, channel_dict, ini_metric)
     
     pr_adaptive_equalizer = Adaptive_Equalizer(        
         equalizer_input  = None,
@@ -53,9 +53,24 @@ def realistic_sys(params:Params):
         taps_num = 15,
         mu = 0.01
     )
-    pr_adaptive_equalizer.equalizer_coeffs = np.loadtxt(params.equalizer_coeffs_file).reshape(1, -1)
-    print(f"\nload equalizer_coeffs from txt files:{params.equalizer_coeffs_file}")
-    print(f"\nequalizer_coeffs are {pr_adaptive_equalizer.equalizer_coeffs}")
+
+    if params.jitteron == True and params.addsineon == True:
+        pr_adaptive_equalizer.equalizer_coeffs = np.loadtxt(params.equalizer_coeffs_jitter_sine_file).reshape(1, -1)
+        print(f"\nload equalizer_coeffs from txt files:{params.equalizer_coeffs_jitter_sine_file}")
+        print(f"\nequalizer_coeffs are {pr_adaptive_equalizer.equalizer_coeffs}")
+    elif params.jitteron == True and params.addsineon == False:
+        pr_adaptive_equalizer.equalizer_coeffs = np.loadtxt(params.equalizer_coeffs_jitter_file).reshape(1, -1)
+        print(f"\nload equalizer_coeffs from txt files:{params.equalizer_coeffs_jitter_file}")
+        print(f"\nequalizer_coeffs are {pr_adaptive_equalizer.equalizer_coeffs}")
+    elif params.jitteron == False and params.addsineon == True:
+        pr_adaptive_equalizer.equalizer_coeffs = np.loadtxt(params.equalizer_coeffs_sine_file).reshape(1, -1)
+        print(f"\nload equalizer_coeffs from txt files:{params.equalizer_coeffs_sine_file}")
+        print(f"\nequalizer_coeffs are {pr_adaptive_equalizer.equalizer_coeffs}")
+    elif params.jitteron == False and params.addsineon == False:
+        pr_adaptive_equalizer.equalizer_coeffs = np.loadtxt(params.equalizer_coeffs_file).reshape(1, -1)
+        print(f"\nload equalizer_coeffs from txt files:{params.equalizer_coeffs_file}")
+        print(f"\nequalizer_coeffs are {pr_adaptive_equalizer.equalizer_coeffs}")
+
     
     # define ber
     num_ber = int((params.snr_stop-params.snr_start)/params.snr_step+1)
@@ -65,7 +80,7 @@ def realistic_sys(params:Params):
     
     # eval mode
     ber_list = []
-    ber_pr_list = []
+    #ber_pr_list = []
     for idx in np.arange(0, num_ber):
         snr = params.snr_start+idx*params.snr_step
         
@@ -73,18 +88,24 @@ def realistic_sys(params:Params):
         codeword = NRZI_converter.forward_coding(RLL_modulator.forward_coding(info))
         
         signal_upsample_ideal, signal_upsample_jittered, rf_signal_ideal, rf_signal = disk_read_channel.RF_signal_jitter(codeword)
-        if params.only_awgn:
-            rf_signal_input = rf_signal_ideal
-        else:
+
+        if params.jitteron:
             rf_signal_input = rf_signal
-        equalizer_input = disk_read_channel.awgn(rf_signal_input, snr)
-        
-        signal_upsample_ideal, signal_upsample_jittered, pr_signal_ideal, pr_signal_real = target_pr_channel.target_channel_jitter(codeword)
-        if params.only_awgn:
-            pr_signal_input = pr_signal_ideal
         else:
-            pr_signal_input = pr_signal_real
-        pr_signal_noise = target_pr_channel.awgn(pr_signal_input, snr)
+            rf_signal_input = rf_signal_ideal
+
+        equalizer_input = disk_read_channel.awgn(rf_signal_input, snr)
+
+        if params.addsineon:
+            equalizer_input = disk_read_channel.addsin(equalizer_input)
+
+        
+        #signal_upsample_ideal, signal_upsample_jittered, pr_signal_ideal, pr_signal_real = target_pr_channel.target_channel_jitter(codeword)
+        #if params.only_awgn:
+        #    pr_signal_input = pr_signal_ideal
+        #else:
+        #    pr_signal_input = pr_signal_real
+        #pr_signal_noise = target_pr_channel.awgn(pr_signal_input, snr)
         
         length = equalizer_input.shape[1]
         
@@ -93,19 +114,19 @@ def realistic_sys(params:Params):
         equalizer_output = pr_adaptive_equalizer.equalized_signal()
         
         detectword = np.empty((1, 0))
-        detectword_pr = np.empty((1, 0))
+        #detectword_pr = np.empty((1, 0))
         for pos in range(0, length - params.overlap_length, params.eval_length):
             
             detector_input             = equalizer_output[:, pos:pos+params.eval_length+params.overlap_length]
-            pr_signal_noise_truncation = pr_signal_noise[:, pos:pos+params.eval_length+params.overlap_length]
+            #pr_signal_noise_truncation = pr_signal_noise[:, pos:pos+params.eval_length+params.overlap_length]
             
             dec_tmp, metric_next = viterbi_detector.vit_dec(detector_input, ini_metric)
             ini_metric = metric_next
             detectword = np.append(detectword, dec_tmp, axis=1)
             
-            dec_tmp_pr, metric_next_pr = viterbi_detector_pr.vit_dec(pr_signal_noise_truncation, ini_metric_pr)
-            ini_metric_pr = metric_next_pr
-            detectword_pr = np.append(detectword_pr, dec_tmp_pr, axis=1)
+            #dec_tmp_pr, metric_next_pr = viterbi_detector_pr.vit_dec(pr_signal_noise_truncation, ini_metric_pr)
+            #ini_metric_pr = metric_next_pr
+            #detectword_pr = np.append(detectword_pr, dec_tmp_pr, axis=1)
             
             # # eval mode 
             # # Guarantees that the equalizer can track changes in channel characteristics
@@ -194,24 +215,37 @@ def realistic_sys(params:Params):
                / codeword_len)
         print("The bit error rate (BER) is:")
         print(ber)
-        ber_pr = (np.count_nonzero(np.abs(codeword[:, 0:codeword_len] - detectword_pr[:, 0:codeword_len])) 
-               / codeword_len)
-        print("The bit error rate (BER) in Target PR channel is:")
-        print(ber_pr)
+        #ber_pr = (np.count_nonzero(np.abs(codeword[:, 0:codeword_len] - detectword_pr[:, 0:codeword_len]))
+        #       / codeword_len)
+        #print("The bit error rate (BER) in Target PR channel is:")
+        #print(ber_pr)
         ber_list.append(ber)
-        ber_pr_list.append(ber_pr)
-    
-    ber_file = "../data/PRML_result.txt"
-    with open(ber_file, "w") as file:
-        for ber in ber_list:
-            file.write(f"{ber}\n")
-    print(f"ber data have save to {ber_file}")
-    
-    ber_pr_file = "../data/TargetPR_result.txt"
-    with open(ber_pr_file, "w") as file:
-        for ber_pr in ber_pr_list:
-            file.write(f"{ber_pr}\n")
-    print(f"ber_pr data have save to {ber_pr_file}")
+        #ber_pr_list.append(ber_pr)
+
+    if params.jitteron == True and params.addsineon == True:
+        ber_file = "../data/PRML_jitter_addsine_result.txt"
+        with open(ber_file, "w") as file:
+            for ber in ber_list:
+                file.write(f"{ber}\n")
+        print(f"ber data have save to {ber_file}")
+    elif params.jitteron == True and params.addsineon == False:
+        ber_file = "../data/PRML_jitter_result.txt"
+        with open(ber_file, "w") as file:
+            for ber in ber_list:
+                file.write(f"{ber}\n")
+        print(f"ber data have save to {ber_file}")
+    elif params.jitteron == False and params.addsineon == True:
+        ber_file = "../data/PRML_addsine_result.txt"
+        with open(ber_file, "w") as file:
+            for ber in ber_list:
+                file.write(f"{ber}\n")
+        print(f"ber data have save to {ber_file}")
+    elif params.jitteron == False and params.addsineon == False:
+        ber_file = "../data/PRML_result.txt"
+        with open(ber_file, "w") as file:
+            for ber in ber_list:
+                file.write(f"{ber}\n")
+        print(f"ber data have save to {ber_file}")
 
 ## Detector: Viterbi detector
 class Viterbi(object):

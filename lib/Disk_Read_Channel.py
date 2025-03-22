@@ -11,6 +11,8 @@ from Disk_Response import BD_symbol_response
 from Utils import plot_separated, plot_eye_diagram
 from Params import Params
 sys.path.pop()
+
+np.random.seed(12345)
     
 class Disk_Read_Channel(object):
     
@@ -68,7 +70,28 @@ class Disk_Read_Channel(object):
         rf_signal = rf_signal[:, ::downsample_factor]
         
         return signal_upsample_ideal, signal_upsample_jittered, rf_signal_ideal, rf_signal
-    
+
+    def addsin(self, x):
+        amplitude = 0.03
+        frequency = 0.001
+        t = np.arange(len(x.reshape(-1)))
+        # 生成正弦波数组
+        sine_wave = amplitude * np.sin(2 * np.pi * frequency * t)
+        # 加入正弦扰动
+        x_noise = x + sine_wave
+        return x_noise
+
+    def multiplysin(self, x):
+        amplitude = 0.03
+        frequency = 0.001
+        t = np.arange(len(x.reshape(-1)))
+        # 生成正弦波数组
+        sine_wave = amplitude * np.sin(2 * np.pi * frequency * t)
+        # 加入正弦扰动
+        x_noise = x * (1 + sine_wave)
+        return x_noise
+
+
     def awgn(self, x, snr):
         E_b = np.mean(np.square(x[0, :self.params.truncation4energy]))
         sigma = np.sqrt(0.5 * E_b * 10 ** (- snr * 1.0 / 10))
@@ -90,106 +113,231 @@ if __name__ == '__main__':
     rate_constrain = num_sym_in_constrain / num_sym_out_constrain
     codeword_len = int(params.equalizer_train_len/rate_constrain)
     
-    params.snr_step = (params.snr_stop-params.snr_start)/(params.num_plots - 1)
-    num_ber = int((params.snr_stop-params.snr_start)/params.snr_step + 1)
-    
     Normalized_t = np.linspace(0, int(params.module_test_len/rate_constrain) - 1, int(params.module_test_len/rate_constrain))
     Normalized_t_upsample = np.linspace(0, int(params.module_test_len/rate_constrain) - 1/params.upsample_factor, params.upsample_factor*int(params.module_test_len/rate_constrain))
-    
-    for idx in np.arange(0, num_ber):
-        snr = params.snr_start+idx*params.snr_step
-        
-        info = np.random.randint(2, size = (1, params.module_test_len))
-        codeword = NRZI_converter.forward_coding(RLL_modulator.forward_coding(info))
-        signal_upsample_ideal, signal_upsample_jittered, rf_signal_ideal, rf_signal = disk_read_channel.RF_signal_jitter(codeword)
-        equalizer_input = disk_read_channel.awgn(rf_signal, snr)
-        
-        Xs = [
-            Normalized_t_upsample,
-            Normalized_t_upsample
-        ]
-        Ys = [
-        {'data': signal_upsample_ideal.reshape(-1), 'label': 'signal_upsample_ideal', 'color': 'red'}, 
-        {'data': signal_upsample_jittered.reshape(-1), 'label': 'signal_upsample_jittered', 'color': 'red'}
-        ]
-        titles = [
-            'signal_upsample_ideal',
-            'signal_upsample_jittered'
-        ]
-        xlabels = ["Time (t/T)"]
-        ylabels = [
-            "Binary",
-            "Binary"
-        ]
-        plot_separated(
-            Xs=Xs, 
-            Ys=Ys, 
-            titles=titles,     
-            xlabels=xlabels, 
-            ylabels=ylabels
-        )
-        
-        Xs = [
-            Normalized_t,
-            Normalized_t,
-            Normalized_t
-        ]
-        Ys = [
-           {'data': rf_signal_ideal.reshape(-1), 'label': 'rf_signal_ideal', 'color': 'red'},
-           {'data': rf_signal.reshape(-1), 'label': 'rf_signal', 'color': 'red'},
-           {'data': equalizer_input.reshape(-1), 'label': f'equalizer_input_snr{snr}', 'color': 'red'}
-        ]
-        titles = [
-            'rf_signal_ideal',
-            'rf_signal',
-            f'equalizer_input_snr{snr}',
-        ]
-        xlabels = ["Time (t/T)"]
-        ylabels = [
-            "Amplitude",
-            "Amplitude",
-            "Amplitude"
-        ]
-        plot_separated(
-            Xs=Xs, 
-            Ys=Ys, 
-            titles=titles,     
-            xlabels=xlabels, 
-            ylabels=ylabels
-        )
-        
-        signal = {'data': rf_signal_ideal.reshape(-1), 'label': 'rf_signal_ideal', 'color': 'black'}
-        title = 'rf_signal_ideal eyes diagram'
-        xlabel = "Time (t/T)"
-        ylabel = "Amplitude"
-        plot_eye_diagram(
-            signal=signal,
-            samples_truncation=params.eye_diagram_truncation, 
-            title=title,     
-            xlabel=xlabel, 
-            ylabel=ylabel
-        )
-            
-        signal = {'data': rf_signal.reshape(-1), 'label': 'rf_signal', 'color': 'black'}
-        title = 'rf_signal eyes diagram'
-        xlabel = "Time (t/T)"
-        ylabel = "Amplitude"
-        plot_eye_diagram(
-            signal=signal,
-            samples_truncation=params.eye_diagram_truncation, 
-            title=title,     
-            xlabel=xlabel, 
-            ylabel=ylabel
-        )
-        
-        signal = {'data': equalizer_input.reshape(-1), 'label': f'equalizer_input_snr{snr}', 'color': 'black'}
-        title = f'equalizer_input_snr{snr} eyes diagram'
-        xlabel = "Time (t/T)"
-        ylabel = "Amplitude"
-        plot_eye_diagram(
-            signal=signal,
-            samples_truncation=params.eye_diagram_truncation, 
-            title=title,     
-            xlabel=xlabel, 
-            ylabel=ylabel
-        )
+
+    snr = 25
+    info = np.random.randint(2, size=(1, params.module_test_len))
+    codeword = NRZI_converter.forward_coding(RLL_modulator.forward_coding(info))
+    signal_upsample_ideal, signal_upsample_jittered, rf_signal_ideal, rf_signal = disk_read_channel.RF_signal_jitter(codeword)
+    signal_diff = signal_upsample_ideal.reshape(-1) - signal_upsample_jittered.reshape(-1)
+    rf_signal_awgn = disk_read_channel.awgn(rf_signal, snr)
+    rf_signal_awgn_addsin = disk_read_channel.addsin(rf_signal_awgn)
+    rf_signal_awgn_multiplysin = disk_read_channel.multiplysin(rf_signal_awgn)
+    signal_addsin_diff = rf_signal_awgn_addsin.reshape(-1) - rf_signal_awgn.reshape(-1)
+    signal_multisin_diff = rf_signal_awgn_multiplysin.reshape(-1) - rf_signal_awgn.reshape(-1)
+    signal_sine_diff = rf_signal_awgn_multiplysin.reshape(-1) - rf_signal_awgn_addsin.reshape(-1)
+
+
+    #jitter and sine
+    Xs = [
+        Normalized_t,
+        Normalized_t,
+        Normalized_t,
+        Normalized_t,
+        Normalized_t,
+        Normalized_t
+    ]
+    Ys = [
+    {'data': rf_signal_awgn.reshape(-1), 'label': 'rf_signal_awgn', 'color': 'red'},
+    {'data': rf_signal_awgn_addsin.reshape(-1), 'label': 'rf_signal_awgn_addsin', 'color': 'red'},
+    {'data': rf_signal_awgn_multiplysin.reshape(-1), 'label': 'rf_signal_awgn_multiplysin', 'color': 'red'},
+    {'data': signal_addsin_diff.reshape(-1), 'label': 'signal_addsin_diff', 'color': 'red'},
+    {'data': signal_multisin_diff.reshape(-1), 'label': 'signal_multisin_diff', 'color': 'red'},
+    {'data': signal_sine_diff.reshape(-1), 'label': 'signal_sine_diff', 'color': 'red'}
+    ]
+    titles = [
+        'rf_signal_awgn',
+        'rf_signal_awgn_addsin',
+        'rf_signal_awgn_multiplysin',
+        'signal_addsin_diff',
+        'signal_multisin_diff',
+        'signal_sine_diff'
+    ]
+    xlabels = ["Time (t/T)"]
+    ylabels = [
+        "Amplitude",
+        "Amplitude",
+        "Amplitude",
+        "Amplitude",
+        "Amplitude",
+        "Amplitude"
+    ]
+    plot_separated(
+        Xs=Xs,
+        Ys=Ys,
+        titles=titles,
+        xlabels=xlabels,
+        ylabels=ylabels
+    )
+
+    #diff of ideal signal and jitter signal
+    Xs = [
+        Normalized_t_upsample,
+        Normalized_t_upsample,
+        Normalized_t_upsample
+    ]
+    Ys = [
+    {'data': signal_upsample_ideal.reshape(-1), 'label': 'signal_upsample_ideal', 'color': 'red'},
+    {'data': signal_upsample_jittered.reshape(-1), 'label': 'signal_upsample_jittered', 'color': 'red'},
+    {'data': signal_diff.reshape(-1), 'label': 'diff', 'color': 'red'}
+    ]
+    titles = [
+        'signal_upsample_ideal',
+        'signal_upsample_jittered',
+        'diff'
+    ]
+    xlabels = ["Time (t/T)"]
+    ylabels = [
+        "Binary",
+        "Binary",
+        "Binary"
+    ]
+    plot_separated(
+        Xs=Xs,
+        Ys=Ys,
+        titles=titles,
+        xlabels=xlabels,
+        ylabels=ylabels
+    )
+
+
+    #jitter and sine
+    Xs = [
+        Normalized_t,
+        Normalized_t,
+        Normalized_t,
+        Normalized_t,
+        Normalized_t
+    ]
+    Ys = [
+    {'data': rf_signal_ideal.reshape(-1), 'label': 'rf_signal_ideal', 'color': 'red'},
+    {'data': rf_signal.reshape(-1), 'label': 'rf_signal', 'color': 'red'},
+    {'data': rf_signal_awgn.reshape(-1), 'label': 'rf_signal_awgn', 'color': 'red'},
+    {'data': rf_signal_awgn_addsin.reshape(-1), 'label': 'rf_signal_awgn_addsin', 'color': 'red'},
+    {'data': rf_signal_awgn_multiplysin.reshape(-1), 'label': 'rf_signal_awgn_multiplysin', 'color': 'red'}
+    ]
+    titles = [
+        'rf_signal_ideal',
+        'rf_signal',
+        'rf_signal_awgn_snr25',
+        'rf_signal_awgn_addsin',
+        'rf_signal_awgn_multiplysin'
+    ]
+    xlabels = ["Time (t/T)"]
+    ylabels = [
+        "Amplitude",
+        "Amplitude",
+        "Amplitude",
+        "Amplitude",
+        "Amplitude"
+    ]
+    plot_separated(
+        Xs=Xs,
+        Ys=Ys,
+        titles=titles,
+        xlabels=xlabels,
+        ylabels=ylabels
+    )
+
+    #params.snr_step = (params.snr_stop-params.snr_start)/(params.num_plots - 1)
+    #num_ber = int((params.snr_stop-params.snr_start)/params.snr_step + 1)
+
+    #for idx in np.arange(0, num_ber):
+    #    snr = params.snr_start+idx*params.snr_step
+    #
+    #    info = np.random.randint(2, size = (1, params.module_test_len))
+    #    codeword = NRZI_converter.forward_coding(RLL_modulator.forward_coding(info))
+    #    signal_upsample_ideal, signal_upsample_jittered, rf_signal_ideal, rf_signal = disk_read_channel.RF_signal_jitter(codeword)
+    #    equalizer_input = disk_read_channel.awgn(rf_signal, snr)
+
+    #
+    #    Xs = [
+    #        Normalized_t_upsample,
+    #        Normalized_t_upsample
+    #    ]
+    #    Ys = [
+    #    {'data': signal_upsample_ideal.reshape(-1), 'label': 'signal_upsample_ideal', 'color': 'red'},
+    #    {'data': signal_upsample_jittered.reshape(-1), 'label': 'signal_upsample_jittered', 'color': 'red'}
+    #    ]
+    #    titles = [
+    #        'signal_upsample_ideal',
+    #        'signal_upsample_jittered'
+    #    ]
+    #    xlabels = ["Time (t/T)"]
+    #    ylabels = [
+    #        "Binary",
+    #        "Binary"
+    #    ]
+    #    plot_separated(
+    #        Xs=Xs,
+    #        Ys=Ys,
+    #        titles=titles,
+    #        xlabels=xlabels,
+    #        ylabels=ylabels
+    #    )
+    #
+    #    Xs = [
+    #        Normalized_t,
+    #        Normalized_t,
+    #        Normalized_t
+    #    ]
+    #    Ys = [
+    #       {'data': rf_signal_ideal.reshape(-1), 'label': 'rf_signal_ideal', 'color': 'red'},
+    #       {'data': rf_signal.reshape(-1), 'label': 'rf_signal', 'color': 'red'},
+    #       {'data': equalizer_input.reshape(-1), 'label': f'equalizer_input_snr{snr}', 'color': 'red'}
+    #    ]
+    #    titles = [
+    #        'rf_signal_ideal',
+    #        'rf_signal',
+    #        f'equalizer_input_snr{snr}',
+    #    ]
+    #    xlabels = ["Time (t/T)"]
+    #    ylabels = [
+    #        "Amplitude",
+    #        "Amplitude",
+    #        "Amplitude"
+    #    ]
+    #    plot_separated(
+    #        Xs=Xs,
+    #        Ys=Ys,
+    #        titles=titles,
+    #        xlabels=xlabels,
+    #        ylabels=ylabels
+    #    )
+    #
+    #    signal = {'data': rf_signal_ideal.reshape(-1), 'label': 'rf_signal_ideal', 'color': 'black'}
+    #    title = 'rf_signal_ideal eyes diagram'
+    #    xlabel = "Time (t/T)"
+    #    ylabel = "Amplitude"
+    #    plot_eye_diagram(
+    #        signal=signal,
+    #        samples_truncation=params.eye_diagram_truncation,
+    #        title=title,
+    #        xlabel=xlabel,
+    #        ylabel=ylabel
+    #    )
+    #
+    #    signal = {'data': rf_signal.reshape(-1), 'label': 'rf_signal', 'color': 'black'}
+    #    title = 'rf_signal eyes diagram'
+    #    xlabel = "Time (t/T)"
+    #    ylabel = "Amplitude"
+    #    plot_eye_diagram(
+    #        signal=signal,
+    #        samples_truncation=params.eye_diagram_truncation,
+    #        title=title,
+    #        xlabel=xlabel,
+    #        ylabel=ylabel
+    #    )
+    #
+    #    signal = {'data': equalizer_input.reshape(-1), 'label': f'equalizer_input_snr{snr}', 'color': 'black'}
+    #    title = f'equalizer_input_snr{snr} eyes diagram'
+    #    xlabel = "Time (t/T)"
+    #    ylabel = "Amplitude"
+    #    plot_eye_diagram(
+    #        signal=signal,
+    #        samples_truncation=params.eye_diagram_truncation,
+    #        title=title,
+    #        xlabel=xlabel,
+    #        ylabel=ylabel
+    #    )
