@@ -93,8 +93,8 @@ if __name__ == '__main__':
     pr_adaptive_equalizer = Adaptive_Equalizer(        
         equalizer_input  = equalizer_input,
         reference_signal = pr_signal_ideal,
-        taps_num = 15,
-        mu = 0.01
+        taps_num = params.equalizer_taps_num,
+        mu = params.equalizer_mu
     )
     detector_input, error_signal, error_signal_square, equalizer_coeffs = pr_adaptive_equalizer.lms()
     
@@ -168,35 +168,22 @@ if __name__ == '__main__':
         ylabels=ylabels
     )
 
+    # save equalizer_coeffs to txt
+    if not os.path.exists(params.equalizer_coeffs_dir):
+        os.makedirs(params.equalizer_coeffs_dir)
+        
     if params.jitteron == True and params.addsineon == True:
-        # save equalizer_coeffs to txt
-        if not os.path.exists(params.equalizer_coeffs_dir):
-            os.makedirs(params.equalizer_coeffs_dir)
-        np.savetxt(params.equalizer_coeffs_jitter_sine_file, pr_adaptive_equalizer.equalizer_coeffs)
-        print(f"save equalizer_coeffs to txt files:{params.equalizer_coeffs_jitter_sine_file}")
-        print(f"equalizer_coeffs are {pr_adaptive_equalizer.equalizer_coeffs}")
+        equalizer_save_file = params.equalizer_coeffs_jitter_sine_file
     elif params.jitteron == True and params.addsineon == False:
-        # save equalizer_coeffs to txt
-        if not os.path.exists(params.equalizer_coeffs_dir):
-            os.makedirs(params.equalizer_coeffs_dir)
-        np.savetxt(params.equalizer_coeffs_jitter_file, pr_adaptive_equalizer.equalizer_coeffs)
-        print(f"save equalizer_coeffs to txt files:{params.equalizer_coeffs_jitter_file}")
-        print(f"equalizer_coeffs are {pr_adaptive_equalizer.equalizer_coeffs}")
+        equalizer_save_file = params.equalizer_coeffs_jitter_file
     elif params.jitteron == False and params.addsineon == True:
-        # save equalizer_coeffs to txt
-        if not os.path.exists(params.equalizer_coeffs_dir):
-            os.makedirs(params.equalizer_coeffs_dir)
-        np.savetxt(params.equalizer_coeffs_sine_file, pr_adaptive_equalizer.equalizer_coeffs)
-        print(f"save equalizer_coeffs to txt files:{params.equalizer_coeffs_sine_file}")
-        print(f"equalizer_coeffs are {pr_adaptive_equalizer.equalizer_coeffs}")
+        equalizer_save_file = params.equalizer_coeffs_sine_file
     elif params.jitteron == False and params.addsineon == False:
-        # save equalizer_coeffs to txt
-        if not os.path.exists(params.equalizer_coeffs_dir):
-            os.makedirs(params.equalizer_coeffs_dir)
-        np.savetxt(params.equalizer_coeffs_file, pr_adaptive_equalizer.equalizer_coeffs)
-        print(f"save equalizer_coeffs to txt files:{params.equalizer_coeffs_file}")
-        print(f"equalizer_coeffs are {pr_adaptive_equalizer.equalizer_coeffs}")
-
+        equalizer_save_file = params.equalizer_coeffs_file
+    
+    np.savetxt(equalizer_save_file, pr_adaptive_equalizer.equalizer_coeffs)
+    print(f"save equalizer_coeffs to txt files:{equalizer_save_file}")
+    print(f"equalizer_coeffs are {pr_adaptive_equalizer.equalizer_coeffs}")
 
     # validate  
     info_len = int((params.num_plots*params.eval_length + params.overlap_length)*rate_constrain)
@@ -221,9 +208,7 @@ if __name__ == '__main__':
         equalizer_input = disk_read_channel.addsin(equalizer_input)
 
     signal_upsample_ideal, signal_upsample_jittered, pr_signal_ideal, pr_signal_real = target_pr_channel.target_channel_jitter(codeword)
-    
     length = equalizer_input.shape[1]
-    
     # actually equalizer output stream data
     pr_adaptive_equalizer.equalizer_input = equalizer_input
     equalizer_output = pr_adaptive_equalizer.equalized_signal()

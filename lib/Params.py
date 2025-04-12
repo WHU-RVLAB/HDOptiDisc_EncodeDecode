@@ -23,13 +23,16 @@ class Params:
         # equalizer params
         self.equalizer_train_len = 50000
         self.snr_train = 30 # add noise while train equalizer
+        self.equalizer_taps_num = 15
+        self.equalizer_mu = 0.01
         
         # detector/decoder params
         self.eval_info_len = 1000000
         
         # rf channel params
+        self.bd_scaling_para = 0.165 # equal to 0.5*E_b, as bd read channel, it equal to 0.165
         self.tap_bd_num = 6
-        self.jitteron = False
+        self.jitteron = True
         self.addsineon = True
         self.signal_norm = True
         
@@ -48,15 +51,14 @@ class Params:
         self.module_test_len = 1000
         
         # dataset params
-        self.train_set_batches = 200
-        self.test_set_batches = 100
-        self.validate_set_batches = 100
-        self.data_train_len = 5000
-        self.data_test_len = 5000
-        self.data_val_len = 5000
+        self.block_length = 900
+        self.snr_size = 40
         self.snr_start = 5
         self.snr_stop = 45
         self.snr_step = 1
+        self.train_num_probs = 120
+        self.test_num_probs = 120
+        self.val_num_probs = 600
         
         # dataloader params
         self.batch_size_train = 600
@@ -64,19 +66,22 @@ class Params:
         self.batch_size_val = 600
 
         # general model arch params
-        self.input_size = 6 # dimension of a feature should always equal to length of channel memory length
-        self.output_size = 1 # model determine whether the current bit is 0 or 1
+        self.classifier_input_size = 6 # dimension of a feature should always equal to length of channel memory length
+        self.classifier_output_size = 1 # model determine whether the current bit is 0 or 1
+        self.nlp_input_size = 1
+        self.nlp_output_size = 1
         # self.model_arch = "lr"
         # self.model_arch = "xgboost"
         # self.model_arch = "mlp"
         # self.model_arch = "cnn"
         # self.model_arch = "unet"
         self.model_arch = "rnn"
+        # self.model_arch = "rnn_scratch"
         # self.model_arch = "transformer"
         
         # mlp model arch params
-        self.mlp_d_model = 6
-        self.mlp_hidden_size = 8
+        self.mlp_d_model = 12
+        self.mlp_hidden_size = 24
         self.mlp_dropout_ratio = 0.0
         
         # cnn model arch params
@@ -102,6 +107,7 @@ class Params:
         self.transformer_nhead   = 2
         self.transformer_hidden_size = 8
         self.transformer_encoder_layers = 1
+        self.transformer_decoder_layers = 1
         self.transformer_dropout_ratio = 0.0
         
         # train params
@@ -117,5 +123,8 @@ class Params:
         
         # model infer params
         self.eval_length = 60
-        self.overlap_length = 60
+        self.overlap_length = 0
+        
+        # npml params
+        self.noise_predictor_nums = 8
     

@@ -40,7 +40,7 @@ if __name__ == '__main__':
     for idx, file_path in enumerate(files):
         
         filename = os.path.basename(file_path)
-        label = filename.split('_')[0:-1]
+        label = filename.split('_')[0:-1].join()
         
         with open(file_path, 'r', encoding='utf-8') as file:
             data = file.read().splitlines()
