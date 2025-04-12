@@ -10,18 +10,24 @@ sys.path.append(
         os.path.dirname(
             os.path.abspath(__file__))))
 from lib.Const import RLL_state_machine, Target_channel_state_machine
-from lib.Utils import sliding_shape
 from lib.Channel_Modulator import RLL_Modulator
 from lib.Channel_Converter import NRZI_Converter
 from lib.Disk_Read_Channel import Disk_Read_Channel
 from lib.Params import Params
+from lib.Utils import sliding_shape
 sys.path.pop()
 
 class PthDataset(Dataset):
-    def __init__(self, file_path):
+    def __init__(self, file_path, params:Params, model_type="NLP"):
         data = torch.load(file_path, weights_only=False)
-        self.data = torch.from_numpy(data['data']).float()
-        self.label = torch.from_numpy(data['label']).float()
+        if model_type == "Classifier":
+            data_np = sliding_shape(data['data'], params.classifier_input_size)
+            label_np = data['label']
+        elif model_type == "NLP":
+            data_np = sliding_shape(data['data'], params.nlp_input_size)
+            label_np = data['label']
+        self.data = torch.from_numpy(data_np).float()
+        self.label = torch.from_numpy(label_np).float()
 
     def __len__(self):
         return len(self.data)
@@ -48,47 +54,33 @@ class Rawdb(object):
         self.NRZI_converter = NRZI_Converter()
         self.disk_read_channel = Disk_Read_Channel(params)
     
-    def data_generation(self, prob, info_len):
+    def data_generation(self, prob):
         '''
-        training/testing data(with sliding window) and label
+        training/testing data(without sliding window) and label
         output: numpy array 
         '''
         params = self.params
-        dummy_len = int(params.overlap_length * self.code_rate)
-        codeword_len = int(info_len/self.code_rate)
-        num_ber = int((params.snr_stop-params.snr_start)/params.snr_step+1)
+        num_snr = int((params.snr_stop-params.snr_start)/params.snr_step+1)
+        snr_size = params.snr_size
+        bt_size = num_snr*snr_size
+        block_length = params.block_length
         
-        bt_size_snr = int(codeword_len/params.eval_length)
-        bt_size = num_ber*bt_size_snr
-        block_length = params.eval_length + params.overlap_length
         data, label = (np.zeros((bt_size, block_length)), np.zeros((bt_size, block_length)))
         
-        # generate data and label from stream data
-        for snr_idx in np.arange(0, num_ber):
+        for snr_idx in np.arange(0, num_snr):
             snr = params.snr_start+snr_idx*params.snr_step
-            
-            info = np.random.choice(np.arange(0, 2), size = (1, info_len + dummy_len), p=[1-prob, prob])
-            
-            codeword = self.NRZI_converter.forward_coding(self.RLL_modulator.forward_coding(info))
-            signal_upsample_ideal, signal_upsample_jittered, rf_signal_ideal, rf_signal = self.disk_read_channel.RF_signal_jitter(codeword)
-            if params.only_awgn:
-                rf_signal_input = rf_signal_ideal
-            else:
-                rf_signal_input = rf_signal
-            equalizer_input = self.disk_read_channel.awgn(rf_signal_input, snr)
-            
-            length = equalizer_input.shape[1]
-            for signal_idx, pos in enumerate(range(0, length - params.overlap_length, params.eval_length)):
+            for signal_idx in np.arange(0, snr_size):
+                info = np.random.choice(np.arange(0, 2), size = (1, int(params.block_length*self.code_rate)), p=[1-prob, prob])
                 
-                codeword_truncation = codeword[:, pos:pos+params.eval_length+params.overlap_length]
-                rf_signal_truncation = rf_signal[:, pos:pos+params.eval_length+params.overlap_length]
-                equalizer_input_truncation = equalizer_input[:, pos:pos+params.eval_length+params.overlap_length]
-                
-                label[snr_idx*bt_size_snr + signal_idx:snr_idx*bt_size_snr + signal_idx + 1, :] = codeword_truncation
-                data[snr_idx*bt_size_snr + signal_idx:snr_idx*bt_size_snr + signal_idx + 1, :]  = equalizer_input_truncation
-        
-        data = sliding_shape(data, params.input_size)
-        label = label
+                codeword = self.NRZI_converter.forward_coding(self.RLL_modulator.forward_coding(info))
+                signal_upsample_ideal, signal_upsample_jittered, rf_signal_ideal, rf_signal = self.disk_read_channel.RF_signal_jitter(codeword)
+                if params.jitteron:
+                    rf_signal_input = rf_signal
+                else:
+                    rf_signal_input = rf_signal_ideal
+                equalizer_input = self.disk_read_channel.awgn(rf_signal_input, snr)   
+                label[snr_idx*snr_size + signal_idx:snr_idx*snr_size + signal_idx + 1, :] = codeword
+                data[snr_idx*snr_size + signal_idx:snr_idx*snr_size + signal_idx + 1, :]  = equalizer_input
         
         print("generate training/testing data(with sliding window) and label")
         
@@ -100,39 +92,24 @@ class Rawdb(object):
         output: numpy array data_eval, numpy array label_eval
         '''
         params = self.params
-        info_len = params.data_val_len
-        dummy_len = int(params.overlap_length * self.code_rate)
-        codeword_len = int(info_len/self.code_rate)
-        num_ber = 1
+        snr_size = params.snr_size
+        bt_size = snr_size
+        block_length = params.block_length
         
-        bt_size_snr = int(codeword_len/params.eval_length)
-        bt_size = num_ber*bt_size_snr
-        block_length = params.eval_length + params.overlap_length
         data, label = (np.zeros((bt_size, block_length)), np.zeros((bt_size, block_length)))
         
-        # generate data and label from stream data
-        info = np.random.choice(np.arange(0, 2), size = (1, info_len + dummy_len), p=[1-prob, prob])
-        
-        codeword = self.NRZI_converter.forward_coding(self.RLL_modulator.forward_coding(info))
-        signal_upsample_ideal, signal_upsample_jittered, rf_signal_ideal, rf_signal = self.disk_read_channel.RF_signal_jitter(codeword)
-        if params.only_awgn:
-            rf_signal_input = rf_signal_ideal
-        else:
-            rf_signal_input = rf_signal
-        equalizer_input = self.disk_read_channel.awgn(rf_signal_input, snr)
-        
-        length = equalizer_input.shape[1]
-        for signal_idx, pos in enumerate(range(0, length - params.overlap_length, params.eval_length)):
+        for signal_idx in np.arange(0, snr_size):
+            info = np.random.choice(np.arange(0, 2), size = (1, int(params.block_length*self.code_rate)), p=[1-prob, prob])
             
-            codeword_truncation = codeword[:, pos:pos+params.eval_length+params.overlap_length]
-            rf_signal_truncation = rf_signal[:, pos:pos+params.eval_length+params.overlap_length]
-            equalizer_input_truncation = equalizer_input[:, pos:pos+params.eval_length+params.overlap_length]
-            
-            label[signal_idx:signal_idx + 1, :] = codeword_truncation
-            data[signal_idx:signal_idx + 1, :]  = equalizer_input_truncation
-        
-        data = sliding_shape(data, params.input_size)
-        label = label
+            codeword = self.NRZI_converter.forward_coding(self.RLL_modulator.forward_coding(info))
+            signal_upsample_ideal, signal_upsample_jittered, rf_signal_ideal, rf_signal = self.disk_read_channel.RF_signal_jitter(codeword)
+            if params.jitteron:
+                rf_signal_input = rf_signal
+            else:
+                rf_signal_input = rf_signal_ideal
+            equalizer_input = self.disk_read_channel.awgn(rf_signal_input, snr)   
+            label[signal_idx:signal_idx + 1, :] = codeword
+            data[signal_idx:signal_idx + 1, :]  = equalizer_input
         
         print("generate evaluation data (with sliding window) and label")
         
@@ -144,18 +121,18 @@ class Rawdb(object):
             os.makedirs(data_dir)
         
         params =  self.params
-        block_length = params.eval_length + params.overlap_length
+        block_length = params.block_length
 
-        data = np.empty((0, block_length, params.input_size))
+        data = np.empty((0, block_length))
         label = np.empty((0, block_length))
-        for _ in range(params.train_set_batches):
+        for _ in range(params.train_num_probs):
 
             miu = (0.1 + 0.9)/2
             sigma = (0.9 - miu)/2
             random_p = np.random.normal(miu, sigma)
             random_p = min(max(random_p, 0), 1)
 
-            data_train, label_train = self.data_generation(random_p, params.data_train_len)
+            data_train, label_train = self.data_generation(random_p)
             data = np.append(data, data_train, axis=0)
             label = np.append(label, label_train, axis=0)
 
@@ -166,16 +143,16 @@ class Rawdb(object):
         }, file_path, pickle_protocol=4)
         print("generate training dataset\n")
 
-        data = np.empty((0, block_length, params.input_size))
+        data = np.empty((0, block_length))
         label = np.empty((0, block_length))
-        for _ in range(params.test_set_batches):
+        for _ in range(params.test_num_probs):
 
             miu = (0.1 + 0.9)/2
             sigma = (0.9 - miu)/2
             random_p = np.random.normal(miu, sigma)
             random_p = min(max(random_p, 0), 1)
 
-            data_test, label_test = self.data_generation(random_p, params.data_test_len)
+            data_test, label_test = self.data_generation(random_p)
             data = np.append(data, data_test, axis=0)
             label = np.append(label, label_test, axis=0)
 
@@ -186,9 +163,9 @@ class Rawdb(object):
         }, file_path, pickle_protocol=4)
         print("generate testing dataset\n")
 
-        data = np.empty((0, block_length, params.input_size))
+        data = np.empty((0, block_length))
         label = np.empty((0, block_length))
-        for _ in range(params.validate_set_batches):
+        for _ in range(params.val_num_probs):
 
             miu = (0.1 + 0.9)/2
             sigma = (0.9 - miu)/2

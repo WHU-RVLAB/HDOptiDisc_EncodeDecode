@@ -2,12 +2,18 @@ import sys
 import os
 import torch
 import torch.nn as nn
+
+sys.path.append(
+    os.path.dirname(
+        os.path.abspath(__file__)))
 from BaseModel import BaseModel
+sys.path.pop()
 
 sys.path.append(
     os.path.dirname(
         os.path.dirname(
-            os.path.abspath(__file__))))
+            os.path.dirname(
+                os.path.abspath(__file__)))))
 from lib.Params import Params
 sys.path.pop()
 
@@ -15,7 +21,7 @@ class CNN(BaseModel):
     def __init__(self, params: Params, device):
         super(CNN, self).__init__(params, device)
         
-        self.dec_input = nn.Linear(params.input_size, params.cnn_d_model)
+        self.dec_input = nn.Linear(params.classifier_input_size, params.cnn_d_model)
         
         self.dec_cnn = nn.Sequential(
             nn.Conv1d(
@@ -28,13 +34,13 @@ class CNN(BaseModel):
             nn.Dropout(params.cnn_dropout_ratio)
         )
 
-        self.dec_output = nn.Linear(params.cnn_hidden_size, params.output_size)
+        self.dec_output = nn.Linear(params.cnn_hidden_size, params.classifier_output_size)
 
     def forward(self, x):
         
         x_bt_size = x.shape[0]
         
-        x = x.reshape(-1, self.params.input_size)
+        x = x.reshape(-1, self.params.classifier_input_size)
         
         x = self.dec_input(x)
         

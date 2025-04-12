@@ -4,11 +4,17 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+sys.path.append(
+    os.path.dirname(
+        os.path.abspath(__file__)))
 from BaseModel import BaseModel
+sys.path.pop()
+
 sys.path.append(
     os.path.dirname(
         os.path.dirname(
-            os.path.abspath(__file__))))
+            os.path.dirname(
+                os.path.abspath(__file__)))))
 from lib.Params import Params
 sys.path.pop()
 
@@ -47,7 +53,7 @@ class UNet1D(BaseModel):
         
         super(UNet1D, self).__init__(params, device)
         
-        self.dec_input = nn.Linear(params.input_size, params.unet_d_model)
+        self.dec_input = nn.Linear(params.classifier_input_size, params.unet_d_model)
         
         # encoder
         self.layer1_conv = Conv1d_bn(1, params.unet_base_filters)
@@ -71,13 +77,13 @@ class UNet1D(BaseModel):
         self.deconv3 = Deconv1d_bn(params.unet_base_filters * 4, params.unet_base_filters * 2)
         self.deconv4 = Deconv1d_bn(params.unet_base_filters * 2, params.unet_base_filters)
         
-        self.dec_output = nn.Linear(params.unet_d_model, params.output_size)
+        self.dec_output = nn.Linear(params.unet_d_model, params.classifier_output_size)
         
     def forward(self,x):
         
         x_bt_size = x.shape[0]
         
-        x = x.reshape(-1, self.params.input_size)
+        x = x.reshape(-1, self.params.classifier_input_size)
         
         x = self.dec_input(x)
         

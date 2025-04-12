@@ -4,12 +4,10 @@ import sys
 import os
 np.set_printoptions(threshold=sys.maxsize)
 
-from Classifier.LR import LR
-from Classifier.XGBoost import XGBoost
-from Classifier.MLP import MLP
-from Classifier.CNN import CNN
-from Classifier.Unet1D import UNet1D
-from Classifier.Transformer import Transformer
+from NLP.BaseModel import BaseModel
+from NLP.RNN import RNN
+from NLP.RNNScratch import RNNScratch
+from NLP.Transformer import Transformer
 sys.path.append(
     os.path.dirname(
         os.path.dirname(
@@ -24,7 +22,7 @@ sys.path.pop()
 
 np.random.seed(12345)
 
-def ai_classifier_sys():
+def ai_nlp_sys():
     global params
     params = Params()
     
@@ -55,43 +53,30 @@ def ai_classifier_sys():
 
     # model
     model_file = None
-    if params.model_arch == "lr":
-        model = LR(params)
-        model_file = "classifier_lr_model.joblib"
-    elif params.model_arch == "xgboost":
-        model = XGBoost(params)
-        model_file = "classifier_xgb_model.json"
-    elif params.model_arch == "mlp":
-        model = MLP(params, device).to(device)
-        model_file = "classifier_mlp.pth.tar"
-    elif params.model_arch == "cnn":
-        model = CNN(params, device).to(device)
-        model_file = "classifier_cnn.pth.tar"
-    elif params.model_arch == "unet":
-        model = UNet1D(params, device).to(device)
-        model_file = "classifier_unet.pth.tar"
+    if params.model_arch == "rnn":
+        model = RNN(params, device).to(device)
+        model_file = "nlp_rnn.pth.tar"
+    elif params.model_arch == "rnn_scratch":
+        model = RNNScratch(params, device).to(device)
+        model_file = "nlp_rnn_scratch.pth.tar"
     elif params.model_arch == "transformer":
         model = Transformer(params, device).to(device)
-        model_file = "classifier_transformer.pth.tar"
+        model_file = "nlp_transformer.pth.tar"
 
     # load model from model_file
     model_path = f"{params.model_dir}/{model_file}"
-    is_ml = params.model_arch == "lr" or params.model_arch == "xgboost"
-    if not is_ml:
-        if os.path.isfile(model_path):
-            print("=> loading checkpoint '{}'".format(model_path))
-            checkpoint = torch.load(model_path, weights_only=False)
-            model.load_state_dict(checkpoint['state_dict'])
-        else:
-            print("=> no checkpoint found at '{}'".format(model_path))
+    if os.path.isfile(model_path):
+        print("=> loading checkpoint '{}'".format(model_path))
+        checkpoint = torch.load(model_path, weights_only=False)
+        model.load_state_dict(checkpoint['state_dict'])
     else:
-        model.load_model(model_path)
+        print("=> no checkpoint found at '{}'".format(model_path))
     
     # define ber
     num_ber = int((params.snr_stop-params.snr_start)/params.snr_step+1)
     codeword_len = int(params.eval_info_len/rate_constrain)
     
-    # eval AI_Classifier sys
+    # eval AI_NLP sys
     ber_list = []
     for idx in np.arange(0, num_ber):
         snr = params.snr_start+idx*params.snr_step
@@ -108,14 +93,21 @@ def ai_classifier_sys():
         
         length = equalizer_input.shape[1]
         decodeword = np.empty((1, 0))
+        if params.model_arch == "rnn" or params.model_arch == "rnn_scratch":
+            hidden_dim = params.rnn_hidden_size
+            num_layers = 2*params.rnn_layer
+        elif params.model_arch == "transformer":
+            hidden_dim = params.transformer_hidden_size
+            num_layers = params.transformer_decoder_layers  
+        init_hidden = torch.zeros(num_layers, 1, hidden_dim, device=device)
         for pos in range(0, length - params.overlap_length, params.eval_length):
             equalizer_input_truncation = equalizer_input[:, pos:pos+params.eval_length+params.overlap_length]
-            truncation_input = sliding_shape(equalizer_input_truncation, params.classifier_input_size)
-            if not is_ml:
-                truncation_input = torch.from_numpy(truncation_input).float().to(device)
-                dec_tmp = model.decode(params.eval_length, truncation_input, device)
-            else:
-                dec_tmp = model.decode(params.eval_length, truncation_input[0, :, :])
+            
+            truncation_input = sliding_shape(equalizer_input_truncation, params.nlp_input_size)
+            truncation_input = torch.from_numpy(truncation_input).float().to(device)
+            dec_tmp, init_hidden = model.decode(params.eval_length, truncation_input, init_hidden, device)
+            init_hidden = torch.zeros(num_layers, 1, hidden_dim, device=device)
+            
             decodeword = np.append(decodeword, dec_tmp, axis=1)
 
         print("The SNR is:")
@@ -125,11 +117,11 @@ def ai_classifier_sys():
         print(ber)
         ber_list.append(ber)
     
-    ber_file = f"../data/classifier_{params.model_arch}_result.txt"
+    ber_file = f"../data/nlp_{params.model_arch}_result.txt"
     with open(ber_file, "w") as file:
         for ber in ber_list:
             file.write(f"{ber}\n")
     print(f"ber data have save to {ber_file}")
 
 if __name__ == '__main__':
-    ai_classifier_sys()
+    ai_nlp_sys()

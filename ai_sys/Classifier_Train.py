@@ -8,20 +8,19 @@ import sys
 import datetime
 np.set_printoptions(threshold=sys.maxsize)
 
-from BaseModel import BaseModel
-from LR import LR
-from XGBoost import XGBoost
-from MLP import MLP
-from CNN import CNN
-from Unet1D import UNet1D
-from RNN import RNN
-from Transformer import Transformer
+from Classifier.BaseModel import BaseModel
+from Classifier.LR import LR
+from Classifier.XGBoost import XGBoost
+from Classifier.MLP import MLP
+from Classifier.CNN import CNN
+from Classifier.Unet1D import UNet1D
+from Classifier.Transformer import Transformer
 sys.path.append(
     os.path.dirname(
         os.path.dirname(
             os.path.abspath(__file__))))
 from lib.Params import Params
-from lib.Classifier_Dataset import PthDataset
+from lib.Model_Dataset import PthDataset
 sys.path.pop()
 
 def main():
@@ -36,39 +35,30 @@ def main():
         device = torch.device("cpu")
         
     # data loader
-    train_dataset = PthDataset(file_path='../data/classifier_train_set.pth')
-    test_dataset = PthDataset(file_path='../data/classifier_test_set.pth')
-    val_dataset = PthDataset(file_path='../data/classifier_validate_set.pth')
+    train_dataset = PthDataset(file_path='../data/classifier_train_set.pth', params=params, model_type="Classifier")
+    test_dataset = PthDataset(file_path='../data/classifier_test_set.pth', params=params, model_type="Classifier")
+    val_dataset = PthDataset(file_path='../data/classifier_validate_set.pth', params=params, model_type="Classifier")
 
     # model
     model_file = None
-    is_nn = 0
     if params.model_arch == "lr":
         model = LR(params)
-        model_file = "lr_model.joblib"
+        model_file = "classifier_lr_model.joblib"
     elif params.model_arch == "xgboost":
         model = XGBoost(params)
-        model_file = "xgb_model.json"
+        model_file = "classifier_xgb_model.json"
     elif params.model_arch == "mlp":
-        is_nn = 1
         model = MLP(params, device).to(device)
-        model_file = "mlp.pth.tar"
+        model_file = "classifier_mlp.pth.tar"
     elif params.model_arch == "cnn":
-        is_nn = 1
         model = CNN(params, device).to(device)
-        model_file = "cnn.pth.tar"
+        model_file = "classifier_cnn.pth.tar"
     elif params.model_arch == "unet":
-        is_nn = 1
         model = UNet1D(params, device).to(device)
-        model_file = "unet.pth.tar"
-    elif params.model_arch == "rnn":
-        is_nn = 1
-        model = RNN(params, device).to(device)
-        model_file = "rnn.pth.tar"
+        model_file = "classifier_unet.pth.tar"
     elif params.model_arch == "transformer":
-        is_nn = 1
         model = Transformer(params, device).to(device)
-        model_file = "transformer.pth.tar"
+        model_file = "classifier_transformer.pth.tar"
     
     # model dir
     if not os.path.exists(params.model_dir):
@@ -76,10 +66,11 @@ def main():
         
     model_path = f"{params.model_dir}/{model_file}"
     
-    if not is_nn:
-        X_train, y_train = train_dataset.data.numpy().reshape(-1, 6), train_dataset.label.numpy().reshape(-1)
-        X_test,  y_test  = test_dataset.data.numpy().reshape(-1, 6),  test_dataset.label.numpy().reshape(-1)
-        X_val,   y_val   = val_dataset.data.numpy().reshape(-1, 6),   val_dataset.label.numpy().reshape(-1)
+    is_ml = params.model_arch == "lr" or params.model_arch == "xgboost"
+    if is_ml:
+        X_train, y_train = train_dataset.data.numpy().reshape(-1, params.classifier_input_size), train_dataset.label.numpy().reshape(-1)
+        X_test,  y_test  = test_dataset.data.numpy().reshape(-1, params.classifier_input_size),  test_dataset.label.numpy().reshape(-1)
+        X_val,   y_val   = val_dataset.data.numpy().reshape(-1, params.classifier_input_size),   val_dataset.label.numpy().reshape(-1)
     
         model.fit(X_train, y_train, X_test, y_test)
         
@@ -92,9 +83,9 @@ def main():
         if params.model_arch == "xgboost":
             model.feature_importance()
     else:
-        train_loader = DataLoader(train_dataset, batch_size=params.batch_size_train, shuffle=True, num_workers=4)
-        test_loader = DataLoader(test_dataset, batch_size=params.batch_size_test, shuffle=False, num_workers=4)
-        val_loader = DataLoader(val_dataset, batch_size=params.batch_size_val, shuffle=False, num_workers=4)
+        train_loader = DataLoader(train_dataset, batch_size=params.batch_size_train, shuffle=True, drop_last=True, num_workers=4)
+        test_loader = DataLoader(test_dataset, batch_size=params.batch_size_test, shuffle=False, drop_last=True, num_workers=4)
+        val_loader = DataLoader(val_dataset, batch_size=params.batch_size_val, shuffle=False, drop_last=True, num_workers=4)
         
         # criterion and optimizer
         optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), 
@@ -147,12 +138,11 @@ def train(train_loader, model:BaseModel, optimizer, epoch, device):
     bt_cnt = 0
     for datas, labels in train_loader:
         datas, labels = datas.to(device), labels.to(device)
-        
-        optimizer.zero_grad()
         output = model(datas)
         loss = loss_func(output, labels, device)
 
         # compute gradient and do gradient step
+        optimizer.zero_grad()
         loss.backward()
         optimizer.step()
         train_loss += loss.item()
@@ -169,24 +159,22 @@ def train(train_loader, model:BaseModel, optimizer, epoch, device):
 def validate(test_loader, val_loader, model:BaseModel, epoch, device):
     # switch to evaluate mode
     model.eval()
-        
     # network
     with torch.no_grad():
         test_loss = 0
         bt_cnt = 0
         for datas, labels in test_loader:
             datas, labels = datas.to(device), labels.to(device)
-            
             output = model(datas)
+            
             loss = loss_func(output, labels, device)
-
             test_loss += loss.item()
             bt_cnt += 1
         avg_loss = test_loss / bt_cnt
     
     if epoch % params.print_freq_ep == 0:
         print('Test Epoch: {} Avg Loss: {:.6f}'.format(epoch+1, avg_loss))
-    
+
     # evaluation
     ber = 1.0
     if (epoch >= params.eval_start) & (epoch % params.eval_freq == 0):

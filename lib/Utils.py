@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 from scipy.interpolate import CubicSpline
 import numpy as np
+import torch
 
 def plot_altogether(X, Ys, title, xlabel, ylabel, xtick_interval=None, ytick_interval=None):
     for Y in Ys:
@@ -100,14 +101,15 @@ def sliding_shape(x, input_size):
     Output: (input_size, length) numpy array
     Mapping: sliding window for each time step
     '''
-    batch_size, time_step = x.shape
-    zero_padding_len = input_size - 1
-    
-    x = np.concatenate((np.zeros((batch_size, zero_padding_len)), x), axis=1)
-    y = np.zeros((batch_size, time_step, input_size))
-    
-    for bt in range(batch_size):
-        for time in range(time_step):
-            y[bt, time, :] = x[bt, time:time+input_size]
+    with torch.no_grad():
+        batch_size, time_step = x.shape
+        zero_padding_len = input_size - 1
+        
+        x = np.concatenate((np.zeros((batch_size, zero_padding_len)), x), axis=1)
+        y = np.zeros((batch_size, time_step, input_size))
+        
+        for bt in range(batch_size):
+            for time in range(time_step):
+                y[bt, time, :] = x[bt, time:time+input_size]
     
     return y.astype(np.float32)

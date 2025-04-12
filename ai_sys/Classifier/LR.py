@@ -7,7 +7,8 @@ from joblib import dump, load
 sys.path.append(
     os.path.dirname(
         os.path.dirname(
-            os.path.abspath(__file__))))
+            os.path.dirname(
+                os.path.abspath(__file__)))))
 from lib.Params import Params
 from lib.Utils import codeword_threshold
 sys.path.pop()
