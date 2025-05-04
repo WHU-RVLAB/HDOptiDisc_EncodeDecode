@@ -22,8 +22,6 @@ from lib.Disk_Read_Channel import Disk_Read_Channel
 from lib.Params import Params
 sys.path.pop()
 
-np.random.seed(12345)
-
 def ai_classifier_sys():
     global params
     params = Params()
@@ -38,7 +36,7 @@ def ai_classifier_sys():
     num_sym_in_constrain = encoder_dict[1]['input'].shape[1]
     num_sym_out_constrain = encoder_dict[1]['output'].shape[1]
     rate_constrain = num_sym_in_constrain / num_sym_out_constrain
-    dummy_len = int(params.overlap_length * num_sym_in_constrain 
+    dummy_len = int(params.post_overlap_length * num_sym_in_constrain 
                  / num_sym_out_constrain)
     
     # class
@@ -108,15 +106,16 @@ def ai_classifier_sys():
         
         length = equalizer_input.shape[1]
         decodeword = np.empty((1, 0))
-        for pos in range(0, length - params.overlap_length, params.eval_length):
-            equalizer_input_truncation = equalizer_input[:, pos:pos+params.eval_length+params.overlap_length]
+        for pos in range(0, length - params.post_overlap_length, params.eval_length):
+            equalizer_input_truncation = equalizer_input[:, pos:pos+params.eval_length+params.post_overlap_length]
             truncation_input = sliding_shape(equalizer_input_truncation, params.classifier_input_size)
             if not is_ml:
                 truncation_input = torch.from_numpy(truncation_input).float().to(device)
-                dec_tmp = model.decode(params.eval_length, truncation_input, device)
+                dec_tmp = model.decode(truncation_input)
             else:
-                dec_tmp = model.decode(params.eval_length, truncation_input[0, :, :])
-            decodeword = np.append(decodeword, dec_tmp, axis=1)
+                dec_tmp = model.decode(truncation_input[0, :, :])
+            dec_tmp_truncation = dec_tmp[:, :params.eval_length]
+            decodeword = np.append(decodeword, dec_tmp_truncation, axis=1)
 
         print("The SNR is:")
         print(snr)

@@ -20,8 +20,6 @@ from lib.Disk_Read_Channel import Disk_Read_Channel
 from lib.Params import Params
 sys.path.pop()
 
-np.random.seed(12345)
-
 def ai_nlp_sys():
     global params
     params = Params()
@@ -36,7 +34,7 @@ def ai_nlp_sys():
     num_sym_in_constrain = encoder_dict[1]['input'].shape[1]
     num_sym_out_constrain = encoder_dict[1]['output'].shape[1]
     rate_constrain = num_sym_in_constrain / num_sym_out_constrain
-    dummy_len = int(params.overlap_length * num_sym_in_constrain 
+    dummy_len = int(params.post_overlap_length * num_sym_in_constrain 
                  / num_sym_out_constrain)
     
     # class
@@ -95,26 +93,51 @@ def ai_nlp_sys():
         decodeword = np.empty((1, 0))
         if params.model_arch == "rnn" or params.model_arch == "rnn_scratch":
             hidden_dim = params.rnn_hidden_size
-            num_layers = 2*params.rnn_layer
+            rnn_hidden_size_factor = 2 if params.rnn_bidirectional else 1
+            num_layers = rnn_hidden_size_factor*params.rnn_layer
         elif params.model_arch == "transformer":
             hidden_dim = params.transformer_hidden_size
-            num_layers = params.transformer_decoder_layers  
+            num_layers = params.transformer_decoder_layers 
+            
+        init_signal =  np.zeros((1, params.pre_overlap_length))
         init_hidden = torch.zeros(num_layers, 1, hidden_dim, device=device)
-        for pos in range(0, length - params.overlap_length, params.eval_length):
-            equalizer_input_truncation = equalizer_input[:, pos:pos+params.eval_length+params.overlap_length]
+        error_distribution = np.zeros(params.pre_overlap_length+params.eval_length+params.post_overlap_length)
+        cur_hidden = init_hidden
+        for pos in range(0, length - params.post_overlap_length, params.eval_length):
+            if pos:
+                equalizer_input_truncation = equalizer_input[:, pos-params.pre_overlap_length:pos+params.eval_length+params.post_overlap_length]
+                codeword_truncation = codeword[:, pos-params.pre_overlap_length:pos+params.eval_length+params.post_overlap_length]
+            else:
+                equalizer_input_truncation = equalizer_input[:, pos:pos+params.eval_length+params.post_overlap_length]
+                codeword_truncation = codeword[:, pos:pos+params.eval_length+params.post_overlap_length]
+                equalizer_input_truncation = np.concatenate((init_signal, equalizer_input_truncation), axis=1)
+                codeword_truncation = np.concatenate((init_signal, codeword_truncation), axis=1)
             
             truncation_input = sliding_shape(equalizer_input_truncation, params.nlp_input_size)
             truncation_input = torch.from_numpy(truncation_input).float().to(device)
-            dec_tmp, init_hidden = model.decode(params.eval_length, truncation_input, init_hidden, device)
-            init_hidden = torch.zeros(num_layers, 1, hidden_dim, device=device)
+            dec_tmp, nxt_hidden = model.decode(truncation_input, cur_hidden)
+            dec_tmp_truncation = dec_tmp[:, params.pre_overlap_length:params.pre_overlap_length + params.eval_length]
             
-            decodeword = np.append(decodeword, dec_tmp, axis=1)
+            # whether transmis hidde state
+            if params.nlp_transmis_hidden:
+                cur_hidden = nxt_hidden.detach()
+            
+            codeword_diff = np.abs(codeword_truncation - dec_tmp)
+            ber_truncation = (np.count_nonzero(codeword_diff) / (params.pre_overlap_length+params.eval_length+params.post_overlap_length))
+            print(f"The ber_truncation use {params.model_arch} is:{ber_truncation}")
+            error_indices = np.nonzero(codeword_diff.reshape(-1))[0]
+            print(f"Indices with errors: {error_indices}")
+            for error_indice in error_indices:
+                error_distribution[error_indice] += 1
+            
+            decodeword = np.append(decodeword, dec_tmp_truncation, axis=1)
 
         print("The SNR is:")
         print(snr)
         ber = (np.count_nonzero(np.abs(codeword[:, 0:codeword_len] - decodeword[:, 0:codeword_len])) / codeword_len)
         print(f"The bit error rate (BER) use {params.model_arch} is:")
         print(ber)
+        print(f"Error distribution: {error_distribution}")
         ber_list.append(ber)
     
     ber_file = f"../data/nlp_{params.model_arch}_result.txt"

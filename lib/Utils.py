@@ -112,4 +112,4 @@ def sliding_shape(x, input_size):
             for time in range(time_step):
                 y[bt, time, :] = x[bt, time:time+input_size]
     
-    return y.astype(np.float32)
+    return y.astype(np.float16)

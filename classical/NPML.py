@@ -15,8 +15,6 @@ sys.path.pop()
 from algorithm.Viterbi_NP import Viterbi_NP
 from algorithm.Noise_Predictor import Noise_Predictor
 
-np.random.seed(12345)
-
 def realistic_sys(params:Params):
     
     # constant and input paras
@@ -33,7 +31,7 @@ def realistic_sys(params:Params):
     num_sym_in_constrain = encoder_dict[1]['input'].shape[1]
     num_sym_out_constrain = encoder_dict[1]['output'].shape[1]
     rate_constrain = num_sym_in_constrain / num_sym_out_constrain
-    dummy_len = int(params.overlap_length * num_sym_in_constrain 
+    dummy_len = int(params.post_overlap_length * num_sym_in_constrain 
                  / num_sym_out_constrain)
     
     # class

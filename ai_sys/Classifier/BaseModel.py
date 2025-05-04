@@ -17,16 +17,15 @@ class BaseModel(nn.Module):
         super(BaseModel, self).__init__()
         self.params = params
         self.device = device
-        self.time_step = params.eval_length + params.overlap_length
+        self.time_step = params.eval_length + params.post_overlap_length
         
     def forward(self, x):
         pass
     
-    def decode(self, eval_length, data_eval, device):
-        data_eval = data_eval.to(device)
-        dec = torch.zeros((data_eval.shape[0], 0)).float().to(device)
+    def decode(self, data_eval):
+        dec = torch.zeros((data_eval.shape[0], 0)).float().to(data_eval.device)
         with torch.no_grad():
-            dec_block = codeword_threshold(self.forward(data_eval)[:, :eval_length])
+            dec_block = codeword_threshold(self.forward(data_eval))
         # concatenate the decoding codeword
         dec = torch.cat((dec, dec_block), 1)
             

@@ -25,13 +25,11 @@ class Transformer(BaseModel):
                                     d_model=params.transformer_d_model, 
                                     nhead=params.transformer_nhead, 
                                     dim_feedforward=params.transformer_hidden_size,
-                                    num_encoder_layers=params.transformer_encoder_layers,
                                     num_decoder_layers=params.transformer_decoder_layers,
                                     bias=True, 
                                     batch_first=True,
                                     dropout=params.transformer_dropout_ratio)
                                     
-        self.encoder = transformer.encoder
         self.decoder = transformer.decoder
         self.dec_output = nn.Linear(params.transformer_d_model, params.nlp_output_size)
         
@@ -39,9 +37,7 @@ class Transformer(BaseModel):
                 
         x = self.dec_input(x)
         
-        x = self.encoder(x)
-        
-        x, h = self.decoder(x, h, memory_is_causal=True)
+        x, h = self.decoder(x, h)
 
         x = self.dec_output(x)
         

@@ -14,8 +14,6 @@ from lib.Adaptive_Equalizer import Adaptive_Equalizer
 sys.path.pop()
 from algorithm.Viterbi import Viterbi
 
-np.random.seed(12345)
-
 def realistic_sys(params:Params):
     
     # constant and input paras
@@ -32,7 +30,7 @@ def realistic_sys(params:Params):
     num_sym_in_constrain = encoder_dict[1]['input'].shape[1]
     num_sym_out_constrain = encoder_dict[1]['output'].shape[1]
     rate_constrain = num_sym_in_constrain / num_sym_out_constrain
-    dummy_len = int(params.overlap_length * num_sym_in_constrain 
+    dummy_len = int(params.post_overlap_length * num_sym_in_constrain 
                  / num_sym_out_constrain)
     
     # class
@@ -91,8 +89,8 @@ def realistic_sys(params:Params):
         pr_adaptive_equalizer.equalizer_input = equalizer_input
         equalizer_output = pr_adaptive_equalizer.equalized_signal()
         detectword = np.empty((1, 0))
-        for pos in range(0, length - params.overlap_length, params.eval_length):
-            detector_input = equalizer_output[:, pos:pos+params.eval_length+params.overlap_length]
+        for pos in range(0, length - params.post_overlap_length, params.eval_length):
+            detector_input = equalizer_output[:, pos:pos+params.eval_length+params.post_overlap_length]
             dec_tmp, metric_next = viterbi_detector.vit_dec(detector_input, ini_metric)
             ini_metric = metric_next
             detectword = np.append(detectword, dec_tmp, axis=1)
@@ -103,7 +101,7 @@ def realistic_sys(params:Params):
             # pr_adaptive_equalizer.reference_signal = pr_signal_truncation
             # detector_input_train, error_signal, error_signal_square, equalizer_coeffs = pr_adaptive_equalizer.lms()
             
-            # Normalized_t = np.linspace(0, params.eval_length+params.overlap_length -1, params.eval_length+params.overlap_length)
+            # Normalized_t = np.linspace(0, params.eval_length+params.post_overlap_length -1, params.eval_length+params.post_overlap_length)
             # Xs = [
             #     Normalized_t,
             #     Normalized_t,

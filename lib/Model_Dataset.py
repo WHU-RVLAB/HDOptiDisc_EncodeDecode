@@ -21,10 +21,10 @@ class PthDataset(Dataset):
     def __init__(self, file_path, params:Params, model_type="NLP"):
         data = torch.load(file_path, weights_only=False)
         if model_type == "Classifier":
-            data_np = sliding_shape(data['data'], params.classifier_input_size)
+            data_np = sliding_shape(data['data'][:10000, :], params.classifier_input_size)
             label_np = data['label']
         elif model_type == "NLP":
-            data_np = sliding_shape(data['data'], params.nlp_input_size)
+            data_np = sliding_shape(data['data'][:10000, :], params.nlp_input_size)
             label_np = data['label']
         self.data = torch.from_numpy(data_np).float()
         self.label = torch.from_numpy(label_np).float()
@@ -60,15 +60,15 @@ class Rawdb(object):
         output: numpy array 
         '''
         params = self.params
-        num_snr = int((params.snr_stop-params.snr_start)/params.snr_step+1)
-        snr_size = params.snr_size
+        num_snr = int((params.model_snr_stop-params.model_snr_start)/params.model_snr_step+1)
+        snr_size = params.model_snr_size
         bt_size = num_snr*snr_size
         block_length = params.block_length
         
         data, label = (np.zeros((bt_size, block_length)), np.zeros((bt_size, block_length)))
         
         for snr_idx in np.arange(0, num_snr):
-            snr = params.snr_start+snr_idx*params.snr_step
+            snr = params.model_snr_start+snr_idx*params.model_snr_step
             for signal_idx in np.arange(0, snr_size):
                 info = np.random.choice(np.arange(0, 2), size = (1, int(params.block_length*self.code_rate)), p=[1-prob, prob])
                 
@@ -82,17 +82,17 @@ class Rawdb(object):
                 label[snr_idx*snr_size + signal_idx:snr_idx*snr_size + signal_idx + 1, :] = codeword
                 data[snr_idx*snr_size + signal_idx:snr_idx*snr_size + signal_idx + 1, :]  = equalizer_input
         
-        print("generate training/testing data(with sliding window) and label")
+        print("generate training/testing data(without sliding window) and label")
         
         return data, label
     
     def data_generation_eval(self, prob, snr):
         '''
-        evaluation data (with sliding window) and label
+        evaluation data (without sliding window) and label
         output: numpy array data_eval, numpy array label_eval
         '''
         params = self.params
-        snr_size = params.snr_size
+        snr_size = params.model_snr_size
         bt_size = snr_size
         block_length = params.block_length
         
@@ -111,7 +111,7 @@ class Rawdb(object):
             label[signal_idx:signal_idx + 1, :] = codeword
             data[signal_idx:signal_idx + 1, :]  = equalizer_input
         
-        print("generate evaluation data (with sliding window) and label")
+        print("generate evaluation data (without sliding window) and label")
         
         return data, label
     
@@ -136,7 +136,7 @@ class Rawdb(object):
             data = np.append(data, data_train, axis=0)
             label = np.append(label, label_train, axis=0)
 
-        file_path = f"{data_dir}/classifier_train_set.pth"
+        file_path = f"{data_dir}/train_set.pth"
         torch.save({
             'data': data,
             'label': label
@@ -156,7 +156,7 @@ class Rawdb(object):
             data = np.append(data, data_test, axis=0)
             label = np.append(label, label_test, axis=0)
 
-        file_path = f"{data_dir}/classifier_test_set.pth"
+        file_path = f"{data_dir}/test_set.pth"
         torch.save({
             'data': data,
             'label': label
@@ -181,7 +181,7 @@ class Rawdb(object):
             data = np.append(data, data_val, axis=0)
             label = np.append(label, label_val, axis=0)
 
-        file_path = f"{data_dir}/classifier_validate_set.pth"
+        file_path = f"{data_dir}/validate_set.pth"
         torch.save({
             'data': data,
             'label': label

@@ -13,8 +13,6 @@ from lib.Target_PR_Channel import Target_PR_Channel
 sys.path.pop()
 from algorithm.BCJR import BCJR
 
-np.random.seed(12345)
-
 def ideal_sys(params:Params):
     
     # constant and input paras
@@ -31,7 +29,7 @@ def ideal_sys(params:Params):
     num_sym_in_constrain = encoder_dict[1]['input'].shape[1]
     num_sym_out_constrain = encoder_dict[1]['output'].shape[1]
     rate_constrain = num_sym_in_constrain / num_sym_out_constrain
-    dummy_len = int(params.overlap_length * num_sym_in_constrain 
+    dummy_len = int(params.post_overlap_length * num_sym_in_constrain 
                  / num_sym_out_constrain)
     
     # class

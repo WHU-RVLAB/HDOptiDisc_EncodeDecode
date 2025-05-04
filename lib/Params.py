@@ -27,7 +27,7 @@ class Params:
         self.equalizer_mu = 0.01
         
         # detector/decoder params
-        self.eval_info_len = 1000000
+        self.eval_info_len = 1800
         
         # rf channel params
         self.bd_scaling_para = 0.165 # equal to 0.5*E_b, as bd read channel, it equal to 0.165
@@ -51,11 +51,14 @@ class Params:
         self.module_test_len = 1000
         
         # dataset params
-        self.block_length = 900
-        self.snr_size = 40
-        self.snr_start = 5
+        self.block_length = 1800
+        self.snr_start = 30
         self.snr_stop = 45
         self.snr_step = 1
+        self.model_snr_size = 80
+        self.model_snr_start = 30
+        self.model_snr_stop = 45
+        self.model_snr_step = 1
         self.train_num_probs = 120
         self.test_num_probs = 120
         self.val_num_probs = 600
@@ -70,6 +73,7 @@ class Params:
         self.classifier_output_size = 1 # model determine whether the current bit is 0 or 1
         self.nlp_input_size = 1
         self.nlp_output_size = 1
+        self.nlp_transmis_hidden = False
         # self.model_arch = "lr"
         # self.model_arch = "xgboost"
         # self.model_arch = "mlp"
@@ -97,8 +101,9 @@ class Params:
         self.unet_dropout_ratio = 0.1
         
         # rnn model arch params
-        self.rnn_d_model = 6
-        self.rnn_hidden_size = 8
+        self.rnn_bidirectional = True
+        self.rnn_d_model = 4
+        self.rnn_hidden_size = 4
         self.rnn_layer = 1
         self.rnn_dropout_ratio = 0.0
         
@@ -122,8 +127,9 @@ class Params:
         self.weight_decay = 0.0001
         
         # model infer params
+        self.pre_overlap_length = 4
         self.eval_length = 60
-        self.overlap_length = 0
+        self.post_overlap_length = 4
         
         # npml params
         self.noise_predictor_nums = 8

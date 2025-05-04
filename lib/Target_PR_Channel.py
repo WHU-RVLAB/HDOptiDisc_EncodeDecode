@@ -11,8 +11,6 @@ from Target_PR_Response import partial_response
 from Utils import plot_separated, plot_eye_diagram
 from Params import Params
 sys.path.pop()
-
-np.random.seed(12345)
     
 class Target_PR_Channel(object):
     

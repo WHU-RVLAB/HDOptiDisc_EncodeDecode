@@ -35,9 +35,9 @@ def main():
         device = torch.device("cpu")
         
     # data loader
-    train_dataset = PthDataset(file_path='../data/classifier_train_set.pth', params=params, model_type="Classifier")
-    test_dataset = PthDataset(file_path='../data/classifier_test_set.pth', params=params, model_type="Classifier")
-    val_dataset = PthDataset(file_path='../data/classifier_validate_set.pth', params=params, model_type="Classifier")
+    train_dataset = PthDataset(file_path='../data/train_set.pth', params=params, model_type="Classifier")
+    test_dataset = PthDataset(file_path='../data/test_set.pth', params=params, model_type="Classifier")
+    val_dataset = PthDataset(file_path='../data/validate_set.pth', params=params, model_type="Classifier")
 
     # model
     model_file = None
@@ -181,9 +181,10 @@ def validate(test_loader, val_loader, model:BaseModel, epoch, device):
         decodeword = np.empty((1, 0))
         label_val = np.empty((1, 0))
         for datas, labels in val_loader:
-            dec = model.decode(params.eval_length, datas, device)
+            datas = datas.to(device)
+            dec = model.decode(datas)
             decodeword = np.append(decodeword, dec, axis=1)
-            labels = labels.numpy()[:, :params.eval_length].reshape(1, -1)
+            labels = labels.numpy().reshape(1, -1)
             label_val = np.append(label_val, labels, axis=1)
         ber = (np.sum(np.abs(decodeword - label_val))/label_val.shape[1])
         print('Validation Epoch: {} - ber: {}'.format(epoch+1, ber))

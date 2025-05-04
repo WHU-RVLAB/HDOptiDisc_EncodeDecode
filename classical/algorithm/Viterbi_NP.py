@@ -30,8 +30,8 @@ class Viterbi_NP(object):
         }
         hist_cur = hist_init
         
-        for pos in range(0, length - params.overlap_length, params.eval_length):
-            r_truncation = r[:, pos:pos+params.eval_length+params.overlap_length]
+        for pos in range(0, length - params.post_overlap_length, params.eval_length):
+            r_truncation = r[:, pos:pos+params.eval_length+params.post_overlap_length]
             dec_tmp, metric_next, hist_next = self.npml_dec(r_truncation, metric_cur, hist_cur, pred_coef)
             
             hist_cur = hist_next
