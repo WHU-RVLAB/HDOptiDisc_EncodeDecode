@@ -32,9 +32,9 @@ def main():
         device = torch.device("cpu")
         
     # data loader
-    train_dataset = PthDataset(file_path='../data/classifier_train_set.pth', params=params, model_type = "NLP")
-    test_dataset = PthDataset(file_path='../data/classifier_test_set.pth', params=params, model_type = "NLP")
-    val_dataset = PthDataset(file_path='../data/classifier_validate_set.pth', params=params, model_type = "NLP")
+    train_dataset = PthDataset(file_path='../data/train_set.pth', params=params, model_type = "NLP")
+    test_dataset = PthDataset(file_path='../data/test_set.pth', params=params, model_type = "NLP")
+    val_dataset = PthDataset(file_path='../data/validate_set.pth', params=params, model_type = "NLP")
 
     # model
     model_file = None
@@ -109,23 +109,29 @@ def train(train_loader, model:BaseModel, optimizer, epoch, device):
     
     if params.model_arch == "rnn" or params.model_arch == "rnn_scratch":
         hidden_dim = params.rnn_hidden_size
-        num_layers = 2*params.rnn_layer
+        rnn_hidden_size_factor = 2 if params.rnn_bidirectional else 1
+        num_layers = rnn_hidden_size_factor*params.rnn_layer
     elif params.model_arch == "transformer":
         hidden_dim = params.transformer_hidden_size
         num_layers = params.transformer_decoder_layers
     
     for datas, labels in train_loader:
+        batch_size, seq_length, _ = datas.shape
         datas, labels = datas.to(device), labels.to(device)
         init_hidden = torch.zeros(num_layers, params.batch_size_train, hidden_dim, device=device).detach()
-        output, _ = model(datas, init_hidden)
-        loss = loss_func(output, labels, device)
-
-        # compute gradient and do gradient step
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-        train_loss += loss.item()
-        bt_cnt += 1
+        cur_hidden = init_hidden
+        for pos in range(0, seq_length - params.post_overlap_length, params.eval_length):            
+            datas_truncation = datas[:, pos:pos+params.eval_length+params.post_overlap_length, :]
+            labels_truncation = labels[:, pos:pos+params.eval_length+params.post_overlap_length]
+            output, nxt_hidden = model(datas_truncation, cur_hidden)
+            loss = loss_func(output, labels_truncation, device)
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            train_loss += loss.item() 
+            bt_cnt += 1 
+            if params.nlp_transmis_hidden:         
+                cur_hidden = nxt_hidden.detach()
     avg_loss = train_loss / bt_cnt
 
     # print
@@ -141,7 +147,8 @@ def validate(test_loader, val_loader, model:BaseModel, epoch, device):
     
     if params.model_arch == "rnn" or params.model_arch == "rnn_scratch":
         hidden_dim = params.rnn_hidden_size
-        num_layers = 2*params.rnn_layer
+        rnn_hidden_size_factor = 2 if params.rnn_bidirectional else 1
+        num_layers = rnn_hidden_size_factor*params.rnn_layer
     elif params.model_arch == "transformer":
         hidden_dim = params.transformer_hidden_size
         num_layers = params.transformer_decoder_layers
@@ -170,9 +177,10 @@ def validate(test_loader, val_loader, model:BaseModel, epoch, device):
         label_val = np.empty((1, 0))
         for datas, labels in val_loader:
             init_hidden = torch.zeros(num_layers, params.batch_size_val, hidden_dim, device=device)
-            dec, _ = model.decode(params.eval_length, datas, init_hidden, device)
+            datas = datas.to(device)
+            dec, _ = model.decode(datas, init_hidden)
             decodeword = np.append(decodeword, dec, axis=1)
-            labels = labels.numpy()[:, :params.eval_length].reshape(1, -1)
+            labels = labels.numpy().reshape(1, -1)
             label_val = np.append(label_val, labels, axis=1)
         ber = (np.sum(np.abs(decodeword - label_val))/label_val.shape[1])
         print('Validation Epoch: {} - ber: {}'.format(epoch+1, ber))

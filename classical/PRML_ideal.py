@@ -13,8 +13,6 @@ from lib.Target_PR_Channel import Target_PR_Channel
 sys.path.pop()
 from algorithm.Viterbi import Viterbi
 
-np.random.seed(12345)
-
 def ideal_sys(params:Params):
     
     # constant and input paras
@@ -31,7 +29,7 @@ def ideal_sys(params:Params):
     num_sym_in_constrain = encoder_dict[1]['input'].shape[1]
     num_sym_out_constrain = encoder_dict[1]['output'].shape[1]
     rate_constrain = num_sym_in_constrain / num_sym_out_constrain
-    dummy_len = int(params.overlap_length * num_sym_in_constrain 
+    dummy_len = int(params.post_overlap_length * num_sym_in_constrain 
                  / num_sym_out_constrain)
     
     # class
@@ -61,8 +59,8 @@ def ideal_sys(params:Params):
         
         detectword = np.empty((1, 0))
         length = pr_signal_noise.shape[1]
-        for pos in range(0, length - params.overlap_length, params.eval_length):
-            pr_signal_noise_truncation = pr_signal_noise[:, pos:pos+params.eval_length+params.overlap_length]
+        for pos in range(0, length - params.post_overlap_length, params.eval_length):
+            pr_signal_noise_truncation = pr_signal_noise[:, pos:pos+params.eval_length+params.post_overlap_length]
             dec_tmp, metric_next = viterbi_detector.vit_dec(pr_signal_noise_truncation, ini_metric)
             ini_metric = metric_next
             detectword = np.append(detectword, dec_tmp, axis=1)

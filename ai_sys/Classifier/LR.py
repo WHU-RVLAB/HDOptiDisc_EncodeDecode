@@ -23,9 +23,9 @@ class LR(object):
         lr_model.fit(X_train, y_train)
         self.lr_model = lr_model
 
-    def decode(self, eval_length, X_val):
+    def decode(self, X_val):
         y_pred = self.lr_model.predict(X_val)
-        y_val = codeword_threshold(y_pred)[:eval_length]
+        y_val = codeword_threshold(y_pred)
         y_val = np.array(y_val).reshape(1, -1)
         return y_val
     

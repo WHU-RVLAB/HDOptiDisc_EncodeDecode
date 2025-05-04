@@ -27,9 +27,10 @@ class RNN(BaseModel):
                                     bias=True, 
                                     batch_first=True,
                                     dropout=params.rnn_dropout_ratio, 
-                                    bidirectional=True)
+                                    bidirectional=params.rnn_bidirectional)
         
-        self.dec_output = nn.Linear(2*params.rnn_hidden_size, params.nlp_output_size)
+        rnn_hidden_size_factor = 2 if params.rnn_bidirectional else 1
+        self.dec_output = nn.Linear(rnn_hidden_size_factor*params.rnn_hidden_size, params.nlp_output_size)
         
     def forward(self, x, h): 
         

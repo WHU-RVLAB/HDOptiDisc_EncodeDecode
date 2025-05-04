@@ -47,7 +47,7 @@ if __name__ == '__main__':
             data = [float(item) for item in data]
         
         data = np.array(data, dtype=np.float64)
-        data = np.where(data <= 1e-10, 1e-10, data)
+        data = np.where(data <= 1e-5, 1e-5, data)
         data = np.log10(data)
         
         color = colors[idx % len(colors)]

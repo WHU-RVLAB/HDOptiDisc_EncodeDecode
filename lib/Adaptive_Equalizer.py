@@ -13,8 +13,6 @@ from Utils import plot_separated, plot_eye_diagram
 from Params import Params
 sys.path.pop()
 
-np.random.seed(12345)
-
 class Adaptive_Equalizer(object):
     
     def __init__(self, equalizer_input, reference_signal, taps_num, mu):
@@ -186,7 +184,7 @@ if __name__ == '__main__':
     print(f"equalizer_coeffs are {pr_adaptive_equalizer.equalizer_coeffs}")
 
     # validate  
-    info_len = int((params.num_plots*params.eval_length + params.overlap_length)*rate_constrain)
+    info_len = int((params.num_plots*params.eval_length + params.post_overlap_length)*rate_constrain)
     info = np.random.randint(2, size = (1, info_len))
     codeword = NRZI_converter.forward_coding(RLL_modulator.forward_coding(info))
     
@@ -213,20 +211,20 @@ if __name__ == '__main__':
     pr_adaptive_equalizer.equalizer_input = equalizer_input
     equalizer_output = pr_adaptive_equalizer.equalized_signal()
     
-    for pos in range(0, length - params.overlap_length, params.eval_length):
+    for pos in range(0, length - params.post_overlap_length, params.eval_length):
         
-        codeword_truncation = codeword[:, pos:pos+params.eval_length+params.overlap_length]
-        rf_signal_ideal_truncation = rf_signal_ideal[:, pos:pos+params.eval_length+params.overlap_length]
-        rf_signal_truncation = rf_signal[:, pos:pos+params.eval_length+params.overlap_length]
-        equalizer_input_truncation = equalizer_input[:, pos:pos+params.eval_length+params.overlap_length]
-        pr_signal_truncation = pr_signal_ideal[:, pos:pos+params.eval_length+params.overlap_length]
-        detector_input = equalizer_output[:, pos:pos+params.eval_length+params.overlap_length]
+        codeword_truncation = codeword[:, pos:pos+params.eval_length+params.post_overlap_length]
+        rf_signal_ideal_truncation = rf_signal_ideal[:, pos:pos+params.eval_length+params.post_overlap_length]
+        rf_signal_truncation = rf_signal[:, pos:pos+params.eval_length+params.post_overlap_length]
+        equalizer_input_truncation = equalizer_input[:, pos:pos+params.eval_length+params.post_overlap_length]
+        pr_signal_truncation = pr_signal_ideal[:, pos:pos+params.eval_length+params.post_overlap_length]
+        detector_input = equalizer_output[:, pos:pos+params.eval_length+params.post_overlap_length]
         
         # pr_adaptive_equalizer.equalizer_input  = equalizer_input_truncation
         # pr_adaptive_equalizer.reference_signal = pr_signal_truncation
         # detector_input_train, error_signal, error_signal_square, equalizer_coeffs = pr_adaptive_equalizer.lms()
         
-        Normalized_t = np.linspace(0, params.eval_length+params.overlap_length - 1, params.eval_length+params.overlap_length)
+        Normalized_t = np.linspace(0, params.eval_length+params.post_overlap_length - 1, params.eval_length+params.post_overlap_length)
         Xs = [
             Normalized_t,
             Normalized_t,

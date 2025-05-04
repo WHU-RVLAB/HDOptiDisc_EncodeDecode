@@ -11,8 +11,6 @@ from Disk_Response import BD_symbol_response
 from Utils import plot_separated, plot_eye_diagram
 from Params import Params
 sys.path.pop()
-
-np.random.seed(12345)
     
 class Disk_Read_Channel(object):
     
@@ -213,7 +211,7 @@ if __name__ == '__main__':
     titles = [
         'rf_signal_ideal',
         'rf_signal',
-        'rf_signal_awgn_snr25',
+        f'rf_signal_awgn_snr{snr}',
         'rf_signal_awgn_addsin',
         'rf_signal_awgn_multiplysin'
     ]

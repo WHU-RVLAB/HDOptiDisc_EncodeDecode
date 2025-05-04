@@ -32,9 +32,9 @@ class BCJR(object):
         params = self.params
         
         ini_metric_f = self.ini_metric
-        for pos in range(0, length - params.overlap_length, params.eval_length):
+        for pos in range(0, length - params.post_overlap_length, params.eval_length):
             ini_metric_b = self.ini_metric
-            r_truncation = r[:, pos:pos+params.eval_length+params.overlap_length]
+            r_truncation = r[:, pos:pos+params.eval_length+params.post_overlap_length]
             llr, metric_next = self.llr(r_truncation, ini_metric_f, ini_metric_b, snr)
             ini_metric_f = metric_next
             dec_tmp = llr
