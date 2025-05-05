@@ -7,7 +7,8 @@ sys.path.append(
     os.path.dirname(
         os.path.dirname(
             os.path.dirname(
-                os.path.abspath(__file__)))))
+                os.path.dirname(
+                    os.path.abspath(__file__))))))
 from lib.Params import Params
 from lib.Utils import codeword_threshold
 sys.path.pop()
@@ -17,7 +18,7 @@ class BaseModel(nn.Module):
         super(BaseModel, self).__init__()
         self.params = params
         self.device = device
-        self.time_step = params.eval_length + params.post_overlap_length
+        self.time_step = params.pre_overlap_length + params.eval_length + params.post_overlap_length
         
     def forward(self, x):
         pass

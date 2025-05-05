@@ -1,17 +1,14 @@
 import numpy as np
-import torch
 import sys
 import os
 np.set_printoptions(threshold=sys.maxsize)
 
-from NLP.BaseModel import BaseModel
 from NLP.RNN import RNN
-from NLP.RNNScratch import RNNScratch
-from NLP.Transformer import Transformer
 sys.path.append(
     os.path.dirname(
         os.path.dirname(
-            os.path.abspath(__file__))))
+            os.path.dirname(
+                os.path.abspath(__file__)))))
 from lib.Const import RLL_state_machine, Target_channel_state_machine
 from lib.Utils import sliding_shape
 from lib.Channel_Modulator import RLL_Modulator
@@ -20,7 +17,7 @@ from lib.Disk_Read_Channel import Disk_Read_Channel
 from lib.Params import Params
 sys.path.pop()
 
-def ai_nlp_sys():
+def ai_nlp_deploy_sys():
     global params
     params = Params()
     
@@ -42,33 +39,8 @@ def ai_nlp_sys():
     NRZI_converter = NRZI_Converter()
     disk_read_channel = Disk_Read_Channel(params)
 
-    # device
-    os.environ['CUDA_VISIBLE_DEVICES'] = "0"
-    if torch.cuda.is_available():
-        device = torch.device("cuda")
-    else:
-        device = torch.device("cpu")
-
-    # model
-    model_file = None
-    if params.model_arch == "rnn":
-        model = RNN(params, device).to(device)
-        model_file = "nlp_rnn.pth.tar"
-    elif params.model_arch == "rnn_scratch":
-        model = RNNScratch(params, device).to(device)
-        model_file = "nlp_rnn_scratch.pth.tar"
-    elif params.model_arch == "transformer":
-        model = Transformer(params, device).to(device)
-        model_file = "nlp_transformer.pth.tar"
-
-    # load model from model_file
-    model_path = f"{params.model_dir}/{model_file}"
-    if os.path.isfile(model_path):
-        print("=> loading checkpoint '{}'".format(model_path))
-        checkpoint = torch.load(model_path, weights_only=False)
-        model.load_state_dict(checkpoint['state_dict'])
-    else:
-        print("=> no checkpoint found at '{}'".format(model_path))
+    # deploy model
+    model = RNN(params)
     
     # define ber
     num_ber = int((params.snr_stop-params.snr_start)/params.snr_step+1)
@@ -91,16 +63,13 @@ def ai_nlp_sys():
         
         length = equalizer_input.shape[1]
         decodeword = np.empty((1, 0))
-        if params.model_arch == "rnn" or params.model_arch == "rnn_scratch":
+        if params.model_arch == "rnn":
             hidden_dim = params.rnn_hidden_size
             rnn_hidden_size_factor = 2 if params.rnn_bidirectional else 1
             num_layers = rnn_hidden_size_factor*params.rnn_layer
-        elif params.model_arch == "transformer":
-            hidden_dim = params.transformer_hidden_size
-            num_layers = params.transformer_decoder_layers 
             
         init_signal =  np.zeros((1, params.pre_overlap_length))
-        init_hidden = torch.zeros(num_layers, 1, hidden_dim, device=device)
+        init_hidden =  np.zeros((num_layers, 1, hidden_dim))
         error_distribution = np.zeros(params.pre_overlap_length+params.eval_length+params.post_overlap_length)
         cur_hidden = init_hidden
         for pos in range(0, length - params.post_overlap_length, params.eval_length):
@@ -114,7 +83,6 @@ def ai_nlp_sys():
                 codeword_truncation = np.concatenate((init_signal, codeword_truncation), axis=1)
             
             truncation_input = sliding_shape(equalizer_input_truncation, params.nlp_input_size)
-            truncation_input = torch.from_numpy(truncation_input).float().to(device)
             dec_tmp, nxt_hidden = model.decode(truncation_input, cur_hidden)
             dec_tmp_truncation = dec_tmp[:, params.pre_overlap_length:params.pre_overlap_length + params.eval_length]
             
@@ -140,11 +108,14 @@ def ai_nlp_sys():
         print(f"Error distribution: {error_distribution}")
         ber_list.append(ber)
     
-    ber_file = f"../data/nlp_{params.model_arch}_result.txt"
+    if not os.path.exists(params.algorithm_result_dir):
+        os.makedirs(params.algorithm_result_dir)
+        
+    ber_file = f"../{params.algorithm_result_dir}/nlp_{params.model_arch}_deploy_result.txt"
     with open(ber_file, "w") as file:
         for ber in ber_list:
             file.write(f"{ber}\n")
     print(f"ber data have save to {ber_file}")
 
 if __name__ == '__main__':
-    ai_nlp_sys()
+    ai_nlp_deploy_sys()

@@ -45,7 +45,7 @@ class Disk_Read_Channel(object):
             if signal_ideal_diff[i]:
                 random_jitter = np.random.normal(miu, sigma)*np.random.choice([-1, 1])
                 upsample_jitter[i] = np.round(random_jitter).astype(int)
-                upsample_jitter[i-1] = -upsample_jitter[i]
+                upsample_jitter[i-1] += -upsample_jitter[i]
         
         # print(np.mean(upsample_jitter))
         upsample_jitter += upsample_factor

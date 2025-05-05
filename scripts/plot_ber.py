@@ -22,7 +22,7 @@ if __name__ == '__main__':
     X = range(params.snr_start, params.snr_stop + 1)
     Ys = []
     
-    data_dir = "../data"
+    data_dir = params.algorithm_result_dir
     files = find_result_files(data_dir)
     colors = [
         '#1f77b4',  # 蓝色
@@ -40,7 +40,7 @@ if __name__ == '__main__':
     for idx, file_path in enumerate(files):
         
         filename = os.path.basename(file_path)
-        label = filename.split('_')[0:-1].join()
+        label = filename.split('_')[0:-1]
         
         with open(file_path, 'r', encoding='utf-8') as file:
             data = file.read().splitlines()
