@@ -8,16 +8,18 @@ class Params:
         @brief initialization
         """
         # io dir or files
-        self.model_dir = "../model/"
+        self.model_dir = "./model/"
+        self.onnx_dir = "./onnx/"
+        self.algorithm_result_dir = '../result'
         self.result_file = 'result.txt'
-        self.equalizer_coeffs_dir = "../data"
-        self.equalizer_coeffs_jitter_sine_file = "../data/equalizer_coeffs_jitter_sine.txt"
-        self.equalizer_coeffs_jitter_file = "../data/equalizer_coeffs_jitter.txt"
-        self.equalizer_coeffs_sine_file = "../data/equalizer_coeffs_sine.txt"
-        self.equalizer_coeffs_file = "../data/equalizer_coeffs.txt"
+        self.equalizer_coeffs_dir = "../classical/data"
+        self.equalizer_coeffs_jitter_sine_file = f"{self.equalizer_coeffs_dir}/equalizer_coeffs_jitter_sine.txt"
+        self.equalizer_coeffs_jitter_file = f"{self.equalizer_coeffs_dir}/equalizer_coeffs_jitter.txt"
+        self.equalizer_coeffs_sine_file = f"{self.equalizer_coeffs_dir}/equalizer_coeffs_sine.txt"
+        self.equalizer_coeffs_file = f"{self.equalizer_coeffs_dir}/equalizer_coeffs.txt"
         
         # plot params
-        self.num_plots = 5
+        self.num_plots = 1 # now only use in Adaptive_Equalizer
         self.eye_diagram_truncation = 3
         
         # equalizer params
@@ -80,7 +82,6 @@ class Params:
         # self.model_arch = "cnn"
         # self.model_arch = "unet"
         self.model_arch = "rnn"
-        # self.model_arch = "rnn_scratch"
         # self.model_arch = "transformer"
         
         # mlp model arch params
@@ -127,9 +128,9 @@ class Params:
         self.weight_decay = 0.0001
         
         # model infer params
-        self.pre_overlap_length = 4
+        self.pre_overlap_length = 3
         self.eval_length = 60
-        self.post_overlap_length = 4
+        self.post_overlap_length = 3
         
         # npml params
         self.noise_predictor_nums = 8

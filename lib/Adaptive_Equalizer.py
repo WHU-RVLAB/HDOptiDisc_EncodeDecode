@@ -184,8 +184,9 @@ if __name__ == '__main__':
     print(f"equalizer_coeffs are {pr_adaptive_equalizer.equalizer_coeffs}")
 
     # validate  
-    info_len = int((params.num_plots*params.eval_length + params.post_overlap_length)*rate_constrain)
-    info = np.random.randint(2, size = (1, info_len))
+    dummy_len = int(params.post_overlap_length * rate_constrain)
+    info_len = int(params.num_plots*params.eval_length*rate_constrain)
+    info = np.random.randint(2, size = (1, info_len + dummy_len))
     codeword = NRZI_converter.forward_coding(RLL_modulator.forward_coding(info))
     
     signal_upsample_ideal, signal_upsample_jittered, rf_signal_ideal, rf_signal = disk_read_channel.RF_signal_jitter(codeword)

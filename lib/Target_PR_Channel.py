@@ -46,7 +46,7 @@ class Target_PR_Channel(object):
             if signal_ideal_diff[i]:
                 random_jitter = np.random.normal(miu, sigma)*np.random.choice([-1, 1])
                 upsample_jitter[i] = np.round(random_jitter).astype(int)
-                upsample_jitter[i-1] = -upsample_jitter[i]
+                upsample_jitter[i-1] += -upsample_jitter[i]
         
         # print(np.mean(upsample_jitter))
         upsample_jitter += upsample_factor
@@ -92,106 +92,102 @@ if __name__ == '__main__':
     NRZI_converter = NRZI_Converter()
     target_pr_channel = Target_PR_Channel(params)
     
-    params.snr_step = (params.snr_stop-params.snr_start)/(params.num_plots - 1)
-    num_ber = int((params.snr_stop-params.snr_start)/params.snr_step + 1)
-    
     Normalized_t = np.linspace(0, int(params.module_test_len/rate_constrain) - 1, int(params.module_test_len/rate_constrain))
     Normalized_t_upsample = np.linspace(0, int(params.module_test_len/rate_constrain) - 1/params.upsample_factor, params.upsample_factor*int(params.module_test_len/rate_constrain))
     
-    for idx in np.arange(0, num_ber):
-        snr = params.snr_start+idx*params.snr_step
-        
-        info = np.random.randint(2, size = (1, params.module_test_len))
-        codeword = NRZI_converter.forward_coding(RLL_modulator.forward_coding(info))
-        signal_upsample_ideal, signal_upsample_jittered, pr_signal_ideal, pr_signal_real = target_pr_channel.target_channel_jitter(codeword)
-        pr_signal_noise = target_pr_channel.awgn(pr_signal_real, snr)
-        
-        Xs = [
-            Normalized_t_upsample,
-            Normalized_t_upsample
-        ]
-        Ys = [
-        {'data': signal_upsample_ideal.reshape(-1), 'label': 'signal_upsample_ideal', 'color': 'red'}, 
-        {'data': signal_upsample_jittered.reshape(-1), 'label': 'signal_upsample_jittered', 'color': 'red'}
-        ]
-        titles = [
-            'signal_upsample_ideal',
-            'signal_upsample_jittered'
-        ]
-        xlabels = ["Time (t/T)"]
-        ylabels = [
-            "Binary",
-            "Binary"
-        ]
-        plot_separated(
-            Xs=Xs, 
-            Ys=Ys, 
-            titles=titles,     
-            xlabels=xlabels, 
-            ylabels=ylabels
-        )
+    snr = 30
+    
+    info = np.random.randint(2, size = (1, params.module_test_len))
+    codeword = NRZI_converter.forward_coding(RLL_modulator.forward_coding(info))
+    signal_upsample_ideal, signal_upsample_jittered, pr_signal_ideal, pr_signal_real = target_pr_channel.target_channel_jitter(codeword)
+    pr_signal_noise = target_pr_channel.awgn(pr_signal_real, snr)
+    
+    Xs = [
+        Normalized_t_upsample,
+        Normalized_t_upsample
+    ]
+    Ys = [
+    {'data': signal_upsample_ideal.reshape(-1), 'label': 'signal_upsample_ideal', 'color': 'red'}, 
+    {'data': signal_upsample_jittered.reshape(-1), 'label': 'signal_upsample_jittered', 'color': 'red'}
+    ]
+    titles = [
+        'signal_upsample_ideal',
+        'signal_upsample_jittered'
+    ]
+    xlabels = ["Time (t/T)"]
+    ylabels = [
+        "Binary",
+        "Binary"
+    ]
+    plot_separated(
+        Xs=Xs, 
+        Ys=Ys, 
+        titles=titles,     
+        xlabels=xlabels, 
+        ylabels=ylabels
+    )
 
-        Xs = [
-            Normalized_t,
-            Normalized_t,
-            Normalized_t
-        ]
-        Ys = [
-            {'data': pr_signal_ideal.reshape(-1), 'label': 'pr_signal_ideal', 'color': 'red'}, 
-            {'data': pr_signal_real.reshape(-1), 'label': 'pr_signal_real', 'color': 'red'},
-            {'data': pr_signal_noise.reshape(-1), 'label': f'pr_signal_noise{snr}', 'color': 'red'},
-        ]
-        titles = [
-            'pr_signal_ideal',
-            'pr_signal_real',
-            f'pr_signal_noise{snr}'
-        ]
-        xlabels = ["Time (t/T)"]
-        ylabels = [
-            "Amplitude",
-            "Amplitude",
-            "Amplitude"
-        ]
-        plot_separated(
-            Xs=Xs, 
-            Ys=Ys, 
-            titles=titles,     
-            xlabels=xlabels, 
-            ylabels=ylabels
-        )
-        
-        signal = {'data': pr_signal_ideal.reshape(-1), 'label': 'pr_signal_ideal', 'color': 'black'}
-        title = 'pr_signal_ideal eyes diagram'
-        xlabel = "Time (t/T)"
-        ylabel = "Amplitude"
-        plot_eye_diagram(
-            signal=signal,
-            samples_truncation=params.eye_diagram_truncation, 
-            title=title,     
-            xlabel=xlabel, 
-            ylabel=ylabel
-        )
-        
-        signal = {'data': pr_signal_real.reshape(-1), 'label': 'pr_signal_real', 'color': 'black'}
-        title = 'pr_signal_real eyes diagram'
-        xlabel = "Time (t/T)"
-        ylabel = "Amplitude"
-        plot_eye_diagram(
-            signal=signal,
-            samples_truncation=params.eye_diagram_truncation, 
-            title=title,     
-            xlabel=xlabel, 
-            ylabel=ylabel
-        )
+    Xs = [
+        Normalized_t,
+        Normalized_t,
+        Normalized_t
+    ]
+    Ys = [
+        {'data': pr_signal_ideal.reshape(-1), 'label': 'pr_signal_ideal', 'color': 'red'}, 
+        {'data': pr_signal_real.reshape(-1), 'label': 'pr_signal_real', 'color': 'red'},
+        {'data': pr_signal_noise.reshape(-1), 'label': f'pr_signal_noise{snr}', 'color': 'red'},
+    ]
+    titles = [
+        'pr_signal_ideal',
+        'pr_signal_real',
+        f'pr_signal_noise{snr}'
+    ]
+    xlabels = ["Time (t/T)"]
+    ylabels = [
+        "Amplitude",
+        "Amplitude",
+        "Amplitude"
+    ]
+    plot_separated(
+        Xs=Xs, 
+        Ys=Ys, 
+        titles=titles,     
+        xlabels=xlabels, 
+        ylabels=ylabels
+    )
+    
+    signal = {'data': pr_signal_ideal.reshape(-1), 'label': 'pr_signal_ideal', 'color': 'black'}
+    title = 'pr_signal_ideal eyes diagram'
+    xlabel = "Time (t/T)"
+    ylabel = "Amplitude"
+    plot_eye_diagram(
+        signal=signal,
+        samples_truncation=params.eye_diagram_truncation, 
+        title=title,     
+        xlabel=xlabel, 
+        ylabel=ylabel
+    )
+    
+    signal = {'data': pr_signal_real.reshape(-1), 'label': 'pr_signal_real', 'color': 'black'}
+    title = 'pr_signal_real eyes diagram'
+    xlabel = "Time (t/T)"
+    ylabel = "Amplitude"
+    plot_eye_diagram(
+        signal=signal,
+        samples_truncation=params.eye_diagram_truncation, 
+        title=title,     
+        xlabel=xlabel, 
+        ylabel=ylabel
+    )
 
-        signal = {'data': pr_signal_noise.reshape(-1), 'label': f'pr_signal_noise{snr}', 'color': 'black'}
-        title = f'pr_signal_noise{snr} eyes diagram'
-        xlabel = "Time (t/T)"
-        ylabel = "Amplitude"
-        plot_eye_diagram(
-            signal=signal,
-            samples_truncation=params.eye_diagram_truncation, 
-            title=title,     
-            xlabel=xlabel, 
-            ylabel=ylabel
-        )
+    signal = {'data': pr_signal_noise.reshape(-1), 'label': f'pr_signal_noise{snr}', 'color': 'black'}
+    title = f'pr_signal_noise{snr} eyes diagram'
+    xlabel = "Time (t/T)"
+    ylabel = "Amplitude"
+    plot_eye_diagram(
+        signal=signal,
+        samples_truncation=params.eye_diagram_truncation, 
+        title=title,     
+        xlabel=xlabel, 
+        ylabel=ylabel
+    )

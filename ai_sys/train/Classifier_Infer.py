@@ -13,7 +13,8 @@ from Classifier.Transformer import Transformer
 sys.path.append(
     os.path.dirname(
         os.path.dirname(
-            os.path.abspath(__file__))))
+            os.path.dirname(
+                os.path.abspath(__file__)))))
 from lib.Const import RLL_state_machine, Target_channel_state_machine
 from lib.Utils import sliding_shape
 from lib.Channel_Modulator import RLL_Modulator
@@ -123,8 +124,11 @@ def ai_classifier_sys():
         print(f"The bit error rate (BER) use {params.model_arch} is:")
         print(ber)
         ber_list.append(ber)
-    
-    ber_file = f"../data/classifier_{params.model_arch}_result.txt"
+        
+    if not os.path.exists(f"../{params.algorithm_result_dir}"):
+        os.makedirs(f"../{params.algorithm_result_dir}")
+        
+    ber_file = f"../{params.algorithm_result_dir}/classifier_{params.model_arch}_result.txt"
     with open(ber_file, "w") as file:
         for ber in ber_list:
             file.write(f"{ber}\n")

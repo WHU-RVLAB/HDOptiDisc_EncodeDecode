@@ -184,14 +184,17 @@ def realistic_sys(params:Params):
         print(ber)
         ber_list.append(ber)
 
+    if not os.path.exists(params.algorithm_result_dir):
+            os.makedirs(params.algorithm_result_dir)
+            
     if params.jitteron == True and params.addsineon == True:
-        ber_file = "../data/PRML_jitter_addsine_result.txt"
+        ber_file = f"{params.algorithm_result_dir}/PRML_jitter_addsine_result.txt"
     elif params.jitteron == True and params.addsineon == False:
-        ber_file = "../data/PRML_jitter_result.txt"
+        ber_file = f"{params.algorithm_result_dir}/PRML_jitter_result.txt"
     elif params.jitteron == False and params.addsineon == True:
-        ber_file = "../data/PRML_addsine_result.txt"
+        ber_file = f"{params.algorithm_result_dir}/PRML_addsine_result.txt"
     elif params.jitteron == False and params.addsineon == False:
-        ber_file = "../data/PRML_result.txt"
+        ber_file = f"{params.algorithm_result_dir}/PRML_result.txt"
         
     with open(ber_file, "w") as file:
         for ber in ber_list:

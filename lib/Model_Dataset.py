@@ -199,4 +199,4 @@ if __name__ == '__main__':
 
     rawdb = Rawdb(params, encoder_dict, encoder_definite, channel_dict)
 
-    rawdb.build_rawdb("../data")
+    rawdb.build_rawdb("../ai_sys/train/data")

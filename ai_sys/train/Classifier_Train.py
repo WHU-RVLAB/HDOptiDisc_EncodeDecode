@@ -18,7 +18,8 @@ from Classifier.Transformer import Transformer
 sys.path.append(
     os.path.dirname(
         os.path.dirname(
-            os.path.abspath(__file__))))
+            os.path.dirname(
+                os.path.abspath(__file__)))))
 from lib.Params import Params
 from lib.Model_Dataset import PthDataset
 sys.path.pop()
@@ -35,9 +36,9 @@ def main():
         device = torch.device("cpu")
         
     # data loader
-    train_dataset = PthDataset(file_path='../data/train_set.pth', params=params, model_type="Classifier")
-    test_dataset = PthDataset(file_path='../data/test_set.pth', params=params, model_type="Classifier")
-    val_dataset = PthDataset(file_path='../data/validate_set.pth', params=params, model_type="Classifier")
+    train_dataset = PthDataset(file_path='./data/train_set.pth', params=params, model_type="Classifier")
+    test_dataset = PthDataset(file_path='./data/test_set.pth', params=params, model_type="Classifier")
+    val_dataset = PthDataset(file_path='./data/validate_set.pth', params=params, model_type="Classifier")
 
     # model
     model_file = None
@@ -94,11 +95,15 @@ def main():
                                     weight_decay=params.weight_decay)
     
         # output dir 
-        dir_name = '../output/output_' + datetime.datetime.strftime(datetime.datetime.now(), '%Y_%m_%d_%H_%M_%S') + '/'
+        dir_name = './output/output_' + datetime.datetime.strftime(datetime.datetime.now(), '%Y_%m_%d_%H_%M_%S') + '/'
         if not os.path.exists(dir_name):
             os.makedirs(dir_name)
         result_path = dir_name + params.result_file
         
+        # export to onnx
+        if not os.path.exists(params.onnx_dir):
+            os.makedirs(params.onnx_dir)
+            
         try:
             result = open(result_path, 'w+')
             print(f"File {result_path} opened successfully.")
@@ -128,6 +133,7 @@ def main():
                 'state_dict': model.state_dict(),
                 'optimizer': optimizer.state_dict(),
             }, model_path, pickle_protocol=4)
+        
         result.close()
     
 def train(train_loader, model:BaseModel, optimizer, epoch, device):
@@ -137,6 +143,7 @@ def train(train_loader, model:BaseModel, optimizer, epoch, device):
     train_loss = 0
     bt_cnt = 0
     for datas, labels in train_loader:
+        batch_size, seq_length, _ = datas.shape
         datas, labels = datas.to(device), labels.to(device)
         output = model(datas)
         loss = loss_func(output, labels, device)
@@ -153,6 +160,20 @@ def train(train_loader, model:BaseModel, optimizer, epoch, device):
     if (epoch % params.print_freq_ep == 0):
         print('Train Epoch: {} Avg Loss: {:.6f}'.format(epoch+1, avg_loss))
     
+    model.eval()
+    onnx_data = torch.randn(1, seq_length, params.classifier_input_size).to(device) 
+    torch.onnx.export(
+        model,                          
+        (onnx_data),                    
+        f"{params.onnx_dir}/classifier_{params.model_arch}.onnx",                  
+        input_names = ["onnx_data"],          
+        output_names = ["onnx_decodeword"],        
+        dynamic_axes={                    
+        "onnx_data": {0: "batch_size"},
+        "onnx_decodeword": {0: "batch_size"}
+        },
+        opset_version=20               
+    )
     return avg_loss
             
 

@@ -10,12 +10,12 @@ np.set_printoptions(threshold=sys.maxsize)
 
 from NLP.BaseModel import BaseModel
 from NLP.RNN import RNN
-from NLP.RNNScratch import RNNScratch
 from NLP.Transformer import Transformer
 sys.path.append(
     os.path.dirname(
         os.path.dirname(
-            os.path.abspath(__file__))))
+            os.path.dirname(
+                os.path.abspath(__file__)))))
 from lib.Params import Params
 from lib.Model_Dataset import PthDataset
 sys.path.pop()
@@ -32,18 +32,15 @@ def main():
         device = torch.device("cpu")
         
     # data loader
-    train_dataset = PthDataset(file_path='../data/train_set.pth', params=params, model_type = "NLP")
-    test_dataset = PthDataset(file_path='../data/test_set.pth', params=params, model_type = "NLP")
-    val_dataset = PthDataset(file_path='../data/validate_set.pth', params=params, model_type = "NLP")
+    train_dataset = PthDataset(file_path='./data/train_set.pth', params=params, model_type = "NLP")
+    test_dataset = PthDataset(file_path='./data/test_set.pth', params=params, model_type = "NLP")
+    val_dataset = PthDataset(file_path='./data/validate_set.pth', params=params, model_type = "NLP")
 
     # model
     model_file = None
     if params.model_arch == "rnn":
         model = RNN(params, device).to(device)
         model_file = "nlp_rnn.pth.tar"
-    elif params.model_arch == "rnn_scratch":
-        model = RNNScratch(params, device).to(device)
-        model_file = "nlp_rnn_scratch.pth.tar"
     elif params.model_arch == "transformer":
         model = Transformer(params, device).to(device)
         model_file = "nlp_transformer.pth.tar"
@@ -64,11 +61,15 @@ def main():
                                 weight_decay=params.weight_decay)
 
     # output dir 
-    dir_name = '../output/output_' + datetime.datetime.strftime(datetime.datetime.now(), '%Y_%m_%d_%H_%M_%S') + '/'
+    dir_name = './output/output_' + datetime.datetime.strftime(datetime.datetime.now(), '%Y_%m_%d_%H_%M_%S') + '/'
     if not os.path.exists(dir_name):
         os.makedirs(dir_name)
     result_path = dir_name + params.result_file
     
+    # onnx dir
+    if not os.path.exists(params.onnx_dir):
+        os.makedirs(params.onnx_dir)
+        
     try:
         result = open(result_path, 'w+')
         print(f"File {result_path} opened successfully.")
@@ -107,7 +108,7 @@ def train(train_loader, model:BaseModel, optimizer, epoch, device):
     train_loss = 0
     bt_cnt = 0
     
-    if params.model_arch == "rnn" or params.model_arch == "rnn_scratch":
+    if params.model_arch == "rnn":
         hidden_dim = params.rnn_hidden_size
         rnn_hidden_size_factor = 2 if params.rnn_bidirectional else 1
         num_layers = rnn_hidden_size_factor*params.rnn_layer
@@ -138,6 +139,23 @@ def train(train_loader, model:BaseModel, optimizer, epoch, device):
     if (epoch % params.print_freq_ep == 0):
         print('Train Epoch: {} Avg Loss: {:.6f}'.format(epoch+1, avg_loss))
     
+    model.eval()
+    onnx_data = torch.randn(1, seq_length, params.nlp_input_size).to(device) 
+    onnx_init_hidden = torch.zeros(num_layers, 1, hidden_dim).to(device)
+    torch.onnx.export(
+        model,                          
+        (onnx_data, onnx_init_hidden),                    
+        f"{params.onnx_dir}/nlp_{params.model_arch}.onnx",                  
+        input_names = ["onnx_data", "onnx_init_hidden"],          
+        output_names = ["onnx_decodeword", "onnx_final_hidden"],        
+        dynamic_axes={                    
+        "onnx_data": {0: "batch_size"},
+        "onnx_init_hidden": {1: "batch_size"},
+        "onnx_decodeword": {0: "batch_size"},
+        "onnx_final_hidden": {1: "batch_size"}
+        },
+        opset_version=20               
+    )
     return avg_loss
             
 
@@ -145,7 +163,7 @@ def validate(test_loader, val_loader, model:BaseModel, epoch, device):
     # switch to evaluate mode
     model.eval()
     
-    if params.model_arch == "rnn" or params.model_arch == "rnn_scratch":
+    if params.model_arch == "rnn":
         hidden_dim = params.rnn_hidden_size
         rnn_hidden_size_factor = 2 if params.rnn_bidirectional else 1
         num_layers = rnn_hidden_size_factor*params.rnn_layer
