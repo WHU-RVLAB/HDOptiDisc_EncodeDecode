@@ -29,7 +29,7 @@ class Params:
         self.equalizer_mu = 0.01
         
         # detector/decoder params
-        self.eval_info_len = 1800
+        self.eval_info_len = 1000000
         
         # rf channel params
         self.bd_scaling_para = 0.165 # equal to 0.5*E_b, as bd read channel, it equal to 0.165
@@ -103,13 +103,13 @@ class Params:
         
         # rnn model arch params
         self.rnn_bidirectional = True
-        self.rnn_d_model = 4
+        self.rnn_d_model = 1
         self.rnn_hidden_size = 4
         self.rnn_layer = 1
         self.rnn_dropout_ratio = 0.0
         
         # transformer model arch params
-        self.transformer_d_model = 6
+        self.transformer_d_model = 1
         self.transformer_nhead   = 2
         self.transformer_hidden_size = 8
         self.transformer_encoder_layers = 1
