@@ -9,7 +9,7 @@ sys.path.append(
                 os.path.dirname(
                     os.path.abspath(__file__))))))
 from lib.Params import Params
-from lib.Utils import codeword_threshold
+from lib.Utils import codeword_threshold_deploy
 sys.path.pop()
 
 class BaseModel(object):
@@ -25,7 +25,7 @@ class BaseModel(object):
         dec = np.zeros((data_eval.shape[0], 0))
         
         decodeword, hidden_state = self.forward(data_eval, hidden_state)
-        dec_block = codeword_threshold(decodeword)
+        dec_block = codeword_threshold_deploy(decodeword)
         # concatenate the decoding codeword
         dec = np.concatenate((dec, dec_block), axis=1)
             

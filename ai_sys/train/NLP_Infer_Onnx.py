@@ -3,21 +3,21 @@ import sys
 import os
 np.set_printoptions(threshold=sys.maxsize)
 
-from NLP.RNN import RNN
+import onnxruntime as ort
 sys.path.append(
     os.path.dirname(
         os.path.dirname(
             os.path.dirname(
                 os.path.abspath(__file__)))))
 from lib.Const import RLL_state_machine, Target_channel_state_machine
-from lib.Utils import sliding_shape
+from lib.Utils import sliding_shape, codeword_threshold
 from lib.Channel_Modulator import RLL_Modulator
 from lib.Channel_Converter import NRZI_Converter
 from lib.Disk_Read_Channel import Disk_Read_Channel
 from lib.Params import Params
 sys.path.pop()
 
-def ai_nlp_deploy_sys():
+def ai_nlp_onnx_sys():
     global params
     params = Params()
     
@@ -39,8 +39,20 @@ def ai_nlp_deploy_sys():
     NRZI_converter = NRZI_Converter()
     disk_read_channel = Disk_Read_Channel(params)
 
-    # deploy model
-    model = RNN(params)
+    # model
+    model_file = None
+    if params.model_arch == "rnn":
+        model_file = "nlp_rnn.onnx"
+    elif params.model_arch == "transformer":
+        model_file = "nlp_transformer.onnx"
+
+    # load model from model_file
+    model_path = f"{params.onnx_dir}/{model_file}"
+    if os.path.isfile(model_path):
+        print("=> loading checkpoint '{}'".format(model_path))
+        ort_session = ort.InferenceSession(model_path)
+    else:
+        print("=> no checkpoint found at '{}'".format(model_path))
     
     # define ber
     num_ber = int((params.snr_stop-params.snr_start)/params.snr_step+1)
@@ -67,6 +79,9 @@ def ai_nlp_deploy_sys():
             hidden_dim = params.rnn_hidden_size
             rnn_hidden_size_factor = 2 if params.rnn_bidirectional else 1
             num_layers = rnn_hidden_size_factor*params.rnn_layer
+        elif params.model_arch == "transformer":
+            hidden_dim = params.transformer_hidden_size
+            num_layers = params.transformer_decoder_layers 
             
         init_signal =  np.zeros((1, params.pre_overlap_length))
         init_hidden =  np.zeros((num_layers, 1, hidden_dim))
@@ -83,12 +98,19 @@ def ai_nlp_deploy_sys():
                 codeword_truncation = np.concatenate((init_signal, codeword_truncation), axis=1)
             
             truncation_input = sliding_shape(equalizer_input_truncation, params.nlp_input_size)
-            dec_tmp, nxt_hidden = model.decode(truncation_input, cur_hidden)
+            dec_tmp_raw, nxt_hidden = ort_session.run(
+                None,
+                {
+                    "onnx_data": truncation_input.astype(np.float32),
+                    "onnx_init_hidden": cur_hidden.astype(np.float32)
+                }
+            )
+            dec_tmp = codeword_threshold(dec_tmp_raw)
             dec_tmp_truncation = dec_tmp[:, params.pre_overlap_length:params.pre_overlap_length + params.eval_length]
             
             # whether transmis hidde state
             if params.nlp_transmis_hidden:
-                cur_hidden = nxt_hidden.detach()
+                cur_hidden = nxt_hidden
             
             codeword_diff = np.abs(codeword_truncation - dec_tmp)
             ber_truncation = (np.count_nonzero(codeword_diff) / (params.pre_overlap_length+params.eval_length+params.post_overlap_length))
@@ -111,11 +133,11 @@ def ai_nlp_deploy_sys():
     if not os.path.exists(f"../{params.algorithm_result_dir}"):
         os.makedirs(f"../{params.algorithm_result_dir}")
         
-    ber_file = f"../{params.algorithm_result_dir}/nlp_{params.model_arch}_deploy_result.txt"
+    ber_file = f"../{params.algorithm_result_dir}/nlp_{params.model_arch}_onnx_result.txt"
     with open(ber_file, "w") as file:
         for ber in ber_list:
             file.write(f"{ber}\n")
     print(f"ber data have save to {ber_file}")
 
 if __name__ == '__main__':
-    ai_nlp_deploy_sys()
+    ai_nlp_onnx_sys()

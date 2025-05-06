@@ -87,7 +87,12 @@ def codeword_threshold(x):
     x[x > 0.5] = 1
     x[x <= 0.5] = 0
     return x
- 
+
+def codeword_threshold_deploy(x):
+    x[x > 0] = 1
+    x[x <= 0] = 0
+    return x
+
 # find one idx for the matched sequence
 def find_index(all_array, element):
     all_array = all_array.tolist()
@@ -112,4 +117,4 @@ def sliding_shape(x, input_size):
             for time in range(time_step):
                 y[bt, time, :] = x[bt, time:time+input_size]
     
-    return y.astype(np.float16)
+    return y

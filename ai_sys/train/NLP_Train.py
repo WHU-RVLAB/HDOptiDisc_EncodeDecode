@@ -140,7 +140,7 @@ def train(train_loader, model:BaseModel, optimizer, epoch, device):
         print('Train Epoch: {} Avg Loss: {:.6f}'.format(epoch+1, avg_loss))
     
     model.eval()
-    onnx_data = torch.randn(1, seq_length, params.nlp_input_size).to(device) 
+    onnx_data = torch.randn(1, params.pre_overlap_length+params.eval_length+params.post_overlap_length, params.nlp_input_size).to(device) 
     onnx_init_hidden = torch.zeros(num_layers, 1, hidden_dim).to(device)
     torch.onnx.export(
         model,                          
