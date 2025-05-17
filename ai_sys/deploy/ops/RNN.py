@@ -4,13 +4,27 @@ class RNN:
     def __init__(self, 
                  input_size, 
                  hidden_size, 
+                 
+                forward_w_ih_data,
+                forward_w_hh_data,
+                inverse_w_ih_data,
+                inverse_w_hh_data,
+                
+                
+                forward_b_ih,
+                forward_b_hh,
+                inverse_b_ih,
+                inverse_b_hh,
+                
+                forward_w_ih_scale=None,
+                forward_w_hh_scale=None,
+                inverse_w_ih_scale=None,
+                inverse_w_hh_scale=None,
+                
                  nonlinearity='relu', 
                  bias=True, 
                  batch_first=True,
-                 bidirectional=True,
-                 weight_ih_data=None,
-                 weight_hh_data=None,
-                 bias_data=None):
+                 bidirectional=True):
         assert nonlinearity == 'relu', "Only relu is supported"
         
         self.input_size = input_size
@@ -21,13 +35,21 @@ class RNN:
         self.num_directions = 2 if bidirectional else 1
         
         # Load weights and reshape
-        self.weight_ih = np.load(weight_ih_data).reshape(self.num_directions, hidden_size, input_size)
-        self.weight_hh = np.load(weight_hh_data).reshape(self.num_directions, hidden_size, hidden_size)
+        self.forward_w_ih = np.load(forward_w_ih_data).reshape(hidden_size, input_size)
+        self.forward_w_hh = np.load(forward_w_hh_data).reshape(hidden_size, hidden_size)
+        self.inverse_w_ih = np.load(inverse_w_ih_data).reshape(hidden_size, input_size)
+        self.inverse_w_hh = np.load(inverse_w_hh_data).reshape(hidden_size, hidden_size)
+        
+        self.forward_w_ih_scale = np.load(forward_w_ih_scale) if forward_w_ih_scale else 1.0
+        self.forward_w_hh_scale = np.load(forward_w_hh_scale) if forward_w_hh_scale else 1.0
+        self.inverse_w_ih_scale = np.load(inverse_w_ih_scale) if inverse_w_ih_scale else 1.0
+        self.inverse_w_hh_scale = np.load(inverse_w_hh_scale) if inverse_w_hh_scale else 1.0
         
         if bias:
-            bias = np.load(bias_data).reshape(self.num_directions, hidden_size * 2)
-            self.bias_ih = bias[:, :hidden_size]
-            self.bias_hh = bias[:, hidden_size:]
+            self.forward_b_ih = np.load(forward_b_ih).reshape(input_size, hidden_size)
+            self.forward_b_hh = np.load(forward_b_hh).reshape(input_size, hidden_size)
+            self.inverse_b_ih = np.load(inverse_b_ih).reshape(input_size, hidden_size)
+            self.inverse_b_hh = np.load(inverse_b_hh).reshape(input_size, hidden_size)
 
     def relu(self, x):
         return np.maximum(0, x)
@@ -51,9 +73,30 @@ class RNN:
 
             for t in range(seq_len):
                 step_input = input_seq[t]
+                
+                if direction == 0:
+                    weight_ih = self.forward_w_ih
+                    weight_ih_scale = self.forward_w_ih_scale
+                    
+                    bias_ih = self.forward_b_ih
+                    
+                    weight_hh = self.forward_w_hh
+                    weight_hh_scale = self.forward_w_hh_scale
+                    
+                    bias_hh = self.forward_b_hh
+                elif direction == 1:
+                    weight_ih = self.inverse_w_ih
+                    weight_ih_scale = self.inverse_w_ih_scale
+                    
+                    bias_ih = self.inverse_b_ih
+                    
+                    weight_hh = self.inverse_w_hh
+                    weight_hh_scale = self.inverse_w_hh_scale
+                    
+                    bias_hh = self.inverse_b_hh
                 h_t = self.relu(
-                    step_input @ self.weight_ih[direction].T + self.bias_ih[direction] +
-                    h_t @ self.weight_hh[direction].T + self.bias_hh[direction]
+                    (step_input @ weight_ih.T)*weight_ih_scale + bias_ih +
+                    (h_t @ weight_hh.T)*weight_hh_scale + bias_hh
                 )
                 step_outputs.append(h_t)
 

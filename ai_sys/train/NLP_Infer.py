@@ -59,11 +59,15 @@ def ai_nlp_sys():
         model_file = "nlp_transformer.pth.tar"
 
     # load model from model_file
-    model_path = f"{params.model_dir}/{model_file}"
+    model_path_raw = f"{params.model_dir}/{model_file}"
+    model_path = model_path_raw.replace(".pth.tar", "_quant.pth.tar") if params.load_model_quant else model_path_raw
     if os.path.isfile(model_path):
         print("=> loading checkpoint '{}'".format(model_path))
         checkpoint = torch.load(model_path, weights_only=False)
-        model.load_state_dict(checkpoint['state_dict'])
+        if params.load_model_quant:
+            checkpoint = checkpoint.dequantize()
+        else:
+            model.load_state_dict(checkpoint['state_dict'])
     else:
         print("=> no checkpoint found at '{}'".format(model_path))
     
@@ -137,10 +141,10 @@ def ai_nlp_sys():
         print(f"Error distribution: {error_distribution}")
         ber_list.append(ber)
     
-    if not os.path.exists(f"../{params.algorithm_result_dir}"):
-        os.makedirs(f"../{params.algorithm_result_dir}")
+    if not os.path.exists(f"{params.algorithm_result_dir}"):
+        os.makedirs(f"{params.algorithm_result_dir}")
         
-    ber_file = f"../{params.algorithm_result_dir}/nlp_{params.model_arch}_result.txt"
+    ber_file = f"{params.algorithm_result_dir}/nlp_{params.model_arch}_result.txt"
     with open(ber_file, "w") as file:
         for ber in ber_list:
             file.write(f"{ber}\n")

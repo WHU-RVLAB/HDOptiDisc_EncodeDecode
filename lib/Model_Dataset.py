@@ -21,10 +21,10 @@ class PthDataset(Dataset):
     def __init__(self, file_path, params:Params, model_type="NLP"):
         data = torch.load(file_path, weights_only=False)
         if model_type == "Classifier":
-            data_np = sliding_shape(data['data'][:10000, :], params.classifier_input_size)
+            data_np = sliding_shape(data['data'], params.classifier_input_size)
             label_np = data['label']
         elif model_type == "NLP":
-            data_np = sliding_shape(data['data'][:10000, :], params.nlp_input_size)
+            data_np = sliding_shape(data['data'], params.nlp_input_size)
             label_np = data['label']
         self.data = torch.from_numpy(data_np).float()
         self.label = torch.from_numpy(label_np).float()

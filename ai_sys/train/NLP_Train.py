@@ -1,8 +1,9 @@
 import os
-
 import torch
 from torch.utils.data import DataLoader
 import torch.nn.functional as F
+import torch.quantization as tq
+import torch.nn as nn
 import numpy as np
 import sys
 import datetime
@@ -32,9 +33,9 @@ def main():
         device = torch.device("cpu")
         
     # data loader
-    train_dataset = PthDataset(file_path='./data/train_set.pth', params=params, model_type = "NLP")
-    test_dataset = PthDataset(file_path='./data/test_set.pth', params=params, model_type = "NLP")
-    val_dataset = PthDataset(file_path='./data/validate_set.pth', params=params, model_type = "NLP")
+    train_dataset = PthDataset(file_path='ai_sys/train/data/train_set.pth', params=params, model_type = "NLP")
+    test_dataset = PthDataset(file_path='ai_sys/train/data/test_set.pth', params=params, model_type = "NLP")
+    val_dataset = PthDataset(file_path='ai_sys/train/data/validate_set.pth', params=params, model_type = "NLP")
 
     # model
     model_file = None
@@ -50,6 +51,7 @@ def main():
         os.makedirs(params.model_dir)
         
     model_path = f"{params.model_dir}/{model_file}"
+    model_path_quant = model_path.replace(".pth.tar", "_quant.pth.tar")
     train_loader = DataLoader(train_dataset, batch_size=params.batch_size_train, shuffle=True, drop_last=True, num_workers=4)
     test_loader = DataLoader(test_dataset, batch_size=params.batch_size_test, shuffle=False, drop_last=True, num_workers=4)
     val_loader = DataLoader(val_dataset, batch_size=params.batch_size_val, shuffle=False, drop_last=True, num_workers=4)
@@ -61,7 +63,7 @@ def main():
                                 weight_decay=params.weight_decay)
 
     # output dir 
-    dir_name = './output/output_' + datetime.datetime.strftime(datetime.datetime.now(), '%Y_%m_%d_%H_%M_%S') + '/'
+    dir_name = './ai_sys/train/output/output_' + datetime.datetime.strftime(datetime.datetime.now(), '%Y_%m_%d_%H_%M_%S') + '/'
     if not os.path.exists(dir_name):
         os.makedirs(dir_name)
     result_path = dir_name + params.result_file
@@ -93,12 +95,35 @@ def main():
         result.write('\n')
         result.flush()
         
+        model_quant = tq.quantize_dynamic(
+            model,
+            qconfig_spec = {
+                nn.RNNCell,
+                nn.Linear,
+            },                     
+            dtype=torch.qint8        
+        )
+                
         torch.save({
             'epoch': epoch+1,
             'arch': params.model_arch,
             'state_dict': model.state_dict(),
             'optimizer': optimizer.state_dict(),
         }, model_path, pickle_protocol=4)
+
+        state_dict = {}
+        for name, module in model_quant.named_modules():
+            if hasattr(module, 'get_weight'):
+                state_dict[f'{name}_weights'] = module.get_weight()
+            elif hasattr(module, 'weight'):
+                state_dict[f'{name}_weights'] = module.weight()
+                
+            if hasattr(module, 'get_bias'):
+                state_dict[f'{name}_bias'] = module.get_bias()
+            elif hasattr(module, 'bias'):
+                state_dict[f'{name}_bias'] = module.bias()
+
+        torch.save(state_dict,model_path_quant, pickle_protocol=4)
     result.close()
     
 def train(train_loader, model:BaseModel, optimizer, epoch, device):
@@ -140,7 +165,7 @@ def train(train_loader, model:BaseModel, optimizer, epoch, device):
         print('Train Epoch: {} Avg Loss: {:.6f}'.format(epoch+1, avg_loss))
     
     model.eval()
-    onnx_data = torch.randn(1, params.pre_overlap_length+params.eval_length+params.post_overlap_length, params.nlp_input_size).to(device) 
+    onnx_data = torch.randn(1, 1, params.nlp_input_size).to(device) 
     onnx_init_hidden = torch.zeros(num_layers, 1, hidden_dim).to(device)
     torch.onnx.export(
         model,                          
