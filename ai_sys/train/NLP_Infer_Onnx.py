@@ -130,10 +130,10 @@ def ai_nlp_onnx_sys():
         print(f"Error distribution: {error_distribution}")
         ber_list.append(ber)
     
-    if not os.path.exists(f"../{params.algorithm_result_dir}"):
-        os.makedirs(f"../{params.algorithm_result_dir}")
+    if not os.path.exists(f"{params.algorithm_result_dir}"):
+        os.makedirs(f"{params.algorithm_result_dir}")
         
-    ber_file = f"../{params.algorithm_result_dir}/nlp_{params.model_arch}_onnx_result.txt"
+    ber_file = f"{params.algorithm_result_dir}/nlp_{params.model_arch}_onnx_result.txt"
     with open(ber_file, "w") as file:
         for ber in ber_list:
             file.write(f"{ber}\n")

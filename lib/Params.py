@@ -8,15 +8,16 @@ class Params:
         @brief initialization
         """
         # io dir or files
-        self.model_dir = "./model/"
-        self.onnx_dir = "./onnx/"
-        self.algorithm_result_dir = '../result'
+        self.model_dir = "ai_sys/train/model"
+        self.onnx_dir = "ai_sys/train/onnx"
+        self.algorithm_result_dir = 'result'
         self.result_file = 'result.txt'
-        self.equalizer_coeffs_dir = "../classical/data"
+        self.equalizer_coeffs_dir = "classical/data"
         self.equalizer_coeffs_jitter_sine_file = f"{self.equalizer_coeffs_dir}/equalizer_coeffs_jitter_sine.txt"
         self.equalizer_coeffs_jitter_file = f"{self.equalizer_coeffs_dir}/equalizer_coeffs_jitter.txt"
         self.equalizer_coeffs_sine_file = f"{self.equalizer_coeffs_dir}/equalizer_coeffs_sine.txt"
         self.equalizer_coeffs_file = f"{self.equalizer_coeffs_dir}/equalizer_coeffs.txt"
+        self.load_model_quant = True
         
         # plot params
         self.num_plots = 1 # now only use in Adaptive_Equalizer
@@ -29,7 +30,7 @@ class Params:
         self.equalizer_mu = 0.01
         
         # detector/decoder params
-        self.eval_info_len = 1000000
+        self.eval_info_len = 18000
         
         # rf channel params
         self.bd_scaling_para = 0.165 # equal to 0.5*E_b, as bd read channel, it equal to 0.165
@@ -54,7 +55,7 @@ class Params:
         
         # dataset params
         self.block_length = 1800
-        self.snr_start = 30
+        self.snr_start = 5
         self.snr_stop = 45
         self.snr_step = 1
         self.model_snr_size = 80
@@ -128,7 +129,7 @@ class Params:
         self.weight_decay = 0.0001
         
         # model infer params
-        self.pre_overlap_length = 3
+        self.pre_overlap_length = 1
         self.eval_length = 60
         self.post_overlap_length = 3
         

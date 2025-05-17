@@ -1,6 +1,7 @@
 import numpy as np
 import sys
 import os
+import time
 np.set_printoptions(threshold=sys.maxsize)
 
 from NLP.RNN import RNN
@@ -48,6 +49,7 @@ def ai_nlp_deploy_sys():
     
     # eval AI_NLP sys
     ber_list = []
+    time_list = []
     for idx in np.arange(0, num_ber):
         snr = params.snr_start+idx*params.snr_step
         
@@ -60,9 +62,11 @@ def ai_nlp_deploy_sys():
         else:
             rf_signal_input = rf_signal_ideal
         equalizer_input = disk_read_channel.awgn(rf_signal_input, snr)
+        equalizer_input = np.around(equalizer_input, decimals=4)
         
         length = equalizer_input.shape[1]
         decodeword = np.empty((1, 0))
+        eval_start_time = time.time()
         if params.model_arch == "rnn":
             hidden_dim = params.rnn_hidden_size
             rnn_hidden_size_factor = 2 if params.rnn_bidirectional else 1
@@ -107,15 +111,27 @@ def ai_nlp_deploy_sys():
         print(ber)
         print(f"Error distribution: {error_distribution}")
         ber_list.append(ber)
-    
-    if not os.path.exists(f"../{params.algorithm_result_dir}"):
-        os.makedirs(f"../{params.algorithm_result_dir}")
         
-    ber_file = f"../{params.algorithm_result_dir}/nlp_{params.model_arch}_deploy_result.txt"
+        eval_end_time = time.time()
+        eval_period = eval_end_time - eval_start_time
+        print("The NLP sys eval time is:")
+        print(eval_period)
+        time_list.append(eval_period)
+    
+    if not os.path.exists(f"{params.algorithm_result_dir}"):
+        os.makedirs(f"{params.algorithm_result_dir}")
+        
+    ber_file = f"{params.algorithm_result_dir}/nlp_{params.model_arch}_deploy_result.txt"
     with open(ber_file, "w") as file:
         for ber in ber_list:
             file.write(f"{ber}\n")
     print(f"ber data have save to {ber_file}")
+    
+    time_file = ber_file.replace("_result.txt", "_time.txt")
+    with open(time_file, "w") as file:
+        for t in time_list:
+            file.write(f"{t}\n")
+    print(f"time data have save to {time_file}")
 
 if __name__ == '__main__':
     ai_nlp_deploy_sys()

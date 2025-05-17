@@ -61,8 +61,9 @@ def ideal_sys(params:Params):
         length = pr_signal_noise.shape[1]
         for pos in range(0, length - params.post_overlap_length, params.eval_length):
             pr_signal_noise_truncation = pr_signal_noise[:, pos:pos+params.eval_length+params.post_overlap_length]
-            dec_tmp, metric_next = viterbi_detector.vit_dec(pr_signal_noise_truncation, ini_metric)
+            dec_tmp_raw, metric_next = viterbi_detector.vit_dec(pr_signal_noise_truncation, ini_metric)
             ini_metric = metric_next
+            dec_tmp = dec_tmp_raw[:, :params.eval_length]
             detectword = np.append(detectword, dec_tmp, axis=1)
         
         print("The SNR is:")

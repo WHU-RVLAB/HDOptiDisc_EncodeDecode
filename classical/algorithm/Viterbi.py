@@ -37,7 +37,7 @@ class Viterbi(object):
         path = self.path_convert(path_survivor)
         dec_word = self.path_to_word(path, state_min)
         
-        return dec_word[:, :self.params.eval_length], state_metric_next
+        return dec_word, state_metric_next
         
     def metric(self, r, metric_last):
         '''

@@ -1,5 +1,6 @@
 import sys
 import os
+import time
 import numpy as np
 sys.path.append(
     os.path.dirname(
@@ -65,6 +66,7 @@ def realistic_sys(params:Params):
     
     # eval mode
     ber_list = []
+    time_list = []
     for idx in np.arange(0, num_ber):
         snr = params.snr_start+idx*params.snr_step
         
@@ -89,10 +91,22 @@ def realistic_sys(params:Params):
         pr_adaptive_equalizer.equalizer_input = equalizer_input
         equalizer_output = pr_adaptive_equalizer.equalized_signal()
         detectword = np.empty((1, 0))
+        error_distribution = np.zeros(params.eval_length+params.post_overlap_length)
+        eval_start_time = time.time()
         for pos in range(0, length - params.post_overlap_length, params.eval_length):
+            codeword_truncation = codeword[:, pos:pos+params.eval_length+params.post_overlap_length]
             detector_input = equalizer_output[:, pos:pos+params.eval_length+params.post_overlap_length]
-            dec_tmp, metric_next = viterbi_detector.vit_dec(detector_input, ini_metric)
+            dec_tmp_raw, metric_next = viterbi_detector.vit_dec(detector_input, ini_metric)
             ini_metric = metric_next
+            dec_tmp = dec_tmp_raw[:, :params.eval_length]
+            
+            codeword_diff = np.abs(codeword_truncation - dec_tmp_raw)
+            ber_truncation = (np.count_nonzero(codeword_diff) / (params.eval_length+params.post_overlap_length))
+            print(f"The ber_truncation is:{ber_truncation}")
+            error_indices = np.nonzero(codeword_diff.reshape(-1))[0]
+            print(f"Indices with errors: {error_indices}")
+            for error_indice in error_indices:
+                error_distribution[error_indice] += 1
             detectword = np.append(detectword, dec_tmp, axis=1)
             
             # # eval mode 
@@ -182,7 +196,14 @@ def realistic_sys(params:Params):
                / codeword_len)
         print("The bit error rate (BER) is:")
         print(ber)
+        print(f"Error distribution: {error_distribution}")
         ber_list.append(ber)
+        
+        eval_end_time = time.time()
+        eval_period = eval_end_time - eval_start_time
+        print("The PRML eval time is:")
+        print(eval_period)
+        time_list.append(eval_period)
 
     if not os.path.exists(params.algorithm_result_dir):
             os.makedirs(params.algorithm_result_dir)
@@ -195,11 +216,17 @@ def realistic_sys(params:Params):
         ber_file = f"{params.algorithm_result_dir}/PRML_addsine_result.txt"
     elif params.jitteron == False and params.addsineon == False:
         ber_file = f"{params.algorithm_result_dir}/PRML_result.txt"
-        
+    
     with open(ber_file, "w") as file:
         for ber in ber_list:
             file.write(f"{ber}\n")
     print(f"ber data have save to {ber_file}")
+    
+    time_file = ber_file.replace("_result.txt", "_time.txt")
+    with open(time_file, "w") as file:
+        for t in time_list:
+            file.write(f"{t}\n")
+    print(f"time data have save to {time_file}")
         
 if __name__ == '__main__':
     params = Params()
